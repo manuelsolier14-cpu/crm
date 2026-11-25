@@ -160,6 +160,12 @@ td.dens-s{padding:5px 10px}
 .m.int{align-self:center;background:var(--am2);border:1px dashed #D9770688;max-width:85%;box-shadow:none;font-size:12.5px}
 .m img.med,.m video.med{max-width:280px;max-height:320px;border-radius:10px;display:block;margin-bottom:4px;cursor:pointer}
 .m audio{max-width:260px;display:block}
+.m .wab{margin:6px -4px 2px;border-top:1px solid var(--bd)}
+.m .wab-b{display:block;text-align:center;color:#1a8cd8;font-weight:600;padding:8px 6px;border-bottom:1px solid var(--bd);cursor:default;list-style:none}
+.m .wab-b:last-child{border-bottom:none}
+.m details.wab summary{cursor:pointer}
+.m details.wab summary::-webkit-details-marker{display:none}
+.m .wab-l{padding:4px 8px 6px;font-size:13px;display:flex;flex-direction:column;gap:6px}
 .m .doc{display:flex;align-items:center;gap:8px;background:var(--p3);border:1px solid var(--bd);border-radius:10px;padding:8px 10px;text-decoration:none;color:var(--tx);margin-bottom:4px}
 .m .corr{position:absolute;top:-12px;right:6px;opacity:0;transition:.15s;background:var(--p1)}
 .m:hover .corr{opacity:1}
@@ -712,8 +718,22 @@ function cuerpoMensaje(m) {
   else if (url && t === 'audio') med = `<audio src="${esc(url)}" controls preload="metadata"></audio>`;
   else if (url) med = `<a class="doc" href="${esc(url)}" target="_blank" rel="noopener">${ic('doc')}<span>${esc(m.media_nombre || 'Documento')}</span></a>`;
   else if (m.media_id && ['imagen', 'video', 'audio', 'documento', 'sticker'].includes(t)) med = `<div class="muted" style="font-size:12px">⏳ Descargando ${t}…</div>`;
-  const texto = m.texto && !/^\[(Imagen|Audio|Video|Documento|Sticker|imagen|video|audio|documento)\]/.test(m.texto) && !(url && /^(📷|🎬|🎤|📄)/.test(m.texto)) ? `<div class="tx">${fmtWA(m.texto.trim())}</div>` : (med ? '' : `<div class="tx">${esc(m.texto || '[' + t + ']')}</div>`);
-  return med + texto;
+  let pie = '', cuerpo = m.texto || '';
+  const mk = /\n?\[(Botones|Botón|Lista de agencias|Lista): ([\s\S]*)\]\s*$/.exec(cuerpo);
+  if (mk) {
+    cuerpo = cuerpo.slice(0, mk.index); const k = mk[1], v = mk[2];
+    if (k === 'Botones') pie = `<div class="wab">${v.split(' | ').map((b) => `<div class="wab-b">↩ ${esc(b.trim())}</div>`).join('')}</div>`;
+    else if (k === 'Botón') pie = `<div class="wab"><div class="wab-b">📍 ${esc(v.trim())}</div></div>`;
+    else {
+      const filas = k === 'Lista de agencias' ? v.split(/\),\s*/).map((x) => x.replace(/\s*\(id [^)]*\)?\s*$/, '').trim()).filter(Boolean) : v.split(/,\s*/).filter(Boolean);
+      pie = `<details class="wab"><summary class="wab-b">☰ ${k === 'Lista de agencias' ? 'Ver agencias' : 'Ver opciones'}</summary><div class="wab-l">${filas.map((f) => `<div>○ ${esc(f)}</div>`).join('')}</div></details>`;
+    }
+  }
+  const mm = { ...m, texto: cuerpo };
+  return med + textoDe(mm, med, url, t) + pie;
+}
+function textoDe(m, med, url, t) {
+  return m.texto && !/^\[(Imagen|Audio|Video|Documento|Sticker|imagen|video|audio|documento)\]/.test(m.texto) && !(url && /^(📷|🎬|🎤|📄)/.test(m.texto)) ? `<div class="tx">${fmtWA(m.texto.trim())}</div>` : (med ? '' : (m.texto === '' ? '' : `<div class="tx">${esc(m.texto || '[' + t + ']')}</div>`));
 }
 function pintarMensaje(m, nuevo) {
   const box = $('#msgs'); if (!box) return;
