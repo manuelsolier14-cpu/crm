@@ -2,6 +2,7 @@
 <html lang="es" data-tema="claro">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CRM UNBOX</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2352,6 +2353,20 @@ table th{letter-spacing:.03em}
 [data-variante=suave] #composer.nota textarea{background:#3E3624;color:#F6E3B0}
 [data-variante=suave] .wa-prev .bb{background:#2B5A47}
 </style>
+<script>
+/* ---------- auto-actualización: si hay versión nueva publicada, recarga sola ---------- */
+const CRM_VERSION='2026-11-25-4';
+async function revisarVersion() {
+  try {
+    const t = await fetch(location.pathname + '?nv=' + Date.now(), { cache: 'no-store' }).then((r) => r.text());
+    const v = (t.match(/CRM_VERSION='([^']+)'/) || [])[1];
+    if (v && v !== CRM_VERSION) { const u = new URL(location.href); u.searchParams.set('v', v); location.replace(u.toString()); }
+  } catch (_) { /* sin conexión */ }
+}
+setTimeout(revisarVersion, 3000);
+setInterval(revisarVersion, 3 * 60 * 1000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) revisarVersion(); });
+</script>
 <script>iniciar();</script>
 </body>
 </html>
