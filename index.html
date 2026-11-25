@@ -2191,6 +2191,43 @@ vistaEquipo = async function (...a) {
     $('#uc-ok', c).onclick = async () => { try { await llamar('admin-usuarios', { accion: 'actualizar', id: u.id, correo: $('#uc-c').value.trim() }); cerrarModal(); toast('✓ Correo guardado'); vistaEquipo(); } catch (e) { $('#uc-e').textContent = e.message; } }; });
 };
 </script>
+<script>
+/* Contador de gasto del bot (Claude) en el Dashboard — solo lo ve la jefa */
+(function () {
+  const base = vistaDashboard;
+  vistaDashboard = async function () {
+    await base.apply(this, arguments);
+    const cont = document.querySelector('#p-dashboard');
+    if (!cont || cont.querySelector('#gasto-ia')) return;
+    const { data, error } = await sb.rpc('gasto_ia', { p_dias: 30 });
+    if (error || !data) return;
+    const hoyLima = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
+    const hoy = data.find((d) => d.dia === hoyLima) || { costo_usd: 0, respuestas_chat: 0, llamadas: 0, simulacion: 0 };
+    const mes = data.filter((d) => d.dia.slice(0, 7) === hoyLima.slice(0, 7));
+    const sumMes = mes.reduce((s, d) => s + Number(d.costo_usd || 0), 0);
+    const dias7 = data.slice(0, 7);
+    const prom = dias7.length ? dias7.reduce((s, d) => s + Number(d.costo_usd || 0), 0) / dias7.length : 0;
+    const diasMes = new Date(new Date(hoyLima).getFullYear(), new Date(hoyLima).getMonth() + 1, 0).getDate();
+    const proy = prom * diasMes;
+    const usd = (n) => { n = Number(n || 0); return 'US$ ' + n.toFixed(n === 0 ? 2 : n < 0.1 ? 4 : n < 10 ? 2 : 0); };
+    const sol = (n) => { n = Number(n || 0) * 3.75; return 'S/ ' + n.toFixed(n > 0 && n < 0.1 ? 3 : 2); };
+    const porChat = hoy.respuestas_chat ? Number(hoy.costo_usd) / hoy.respuestas_chat : 0;
+    const max = Math.max(0.0001, ...dias7.map((d) => Number(d.costo_usd || 0)));
+    const barras = dias7.slice().reverse().map((d) => `<div title="${d.dia}: ${usd(d.costo_usd)}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px"><div style="width:100%;max-width:26px;height:${Math.max(3, Math.round(Number(d.costo_usd) / max * 60))}px;background:var(--ac,#F97316);border-radius:4px"></div><span class="muted" style="font-size:10.5px">${d.dia.slice(8)}</span></div>`).join('');
+    const card = document.createElement('div');
+    card.id = 'gasto-ia'; card.className = 'card col'; card.style.marginBottom = '14px';
+    card.innerHTML = `<div class="entre"><b>🤖 Gasto del bot (Claude)</b><span class="muted" style="font-size:12px">Solo lo ves tú</span></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:8px">
+        <div><div class="muted" style="font-size:12px">Hoy</div><div style="font-size:24px;font-weight:700">${usd(hoy.costo_usd)}</div><div class="muted" style="font-size:12px">${sol(hoy.costo_usd)} · ${hoy.respuestas_chat || 0} chats</div></div>
+        <div><div class="muted" style="font-size:12px">Este mes</div><div style="font-size:24px;font-weight:700">${usd(sumMes)}</div><div class="muted" style="font-size:12px">${sol(sumMes)}</div></div>
+        <div><div class="muted" style="font-size:12px">Proyección del mes</div><div style="font-size:24px;font-weight:700">${usd(proy)}</div><div class="muted" style="font-size:12px">según los últimos 7 días</div></div>
+        <div><div class="muted" style="font-size:12px">Por chat atendido hoy</div><div style="font-size:24px;font-weight:700">${porChat ? usd(porChat) : '—'}</div><div class="muted" style="font-size:12px">${porChat ? sol(porChat) : 'sin chats hoy'}${Number(hoy.simulacion) ? ` · pruebas: ${usd(hoy.simulacion)}` : ''}</div></div>
+      </div>
+      ${dias7.length > 1 ? `<div style="display:flex;align-items:flex-end;gap:6px;height:84px;margin-top:10px">${barras}</div>` : ''}`;
+    cont.prepend(card);
+  };
+})();
+</script>
 <script>iniciar();</script>
 </body>
 </html>
