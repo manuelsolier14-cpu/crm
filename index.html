@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CRM UNBOX</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--marca:#FF7A1A;--marca2:#FF7A1A22;--ok:#16A34A;--ok2:#16A34A1F;--rd:#DC2626;--rd2:#DC26261A;--am:#D97706;--am2:#D977061F;--bl:#2563EB;--bl2:#2563EB1A;--mo:#7C3AED;--mo2:#7C3AED1A;--r:12px}
@@ -275,7 +275,7 @@ tr:last-child td{border-bottom:0}
   <aside id="side">
     <div class="top"><div class="logo"><div class="u marca-letra" style="width:32px;height:32px;font-size:16px">U</div><b class="marca-nombre txt" style="font-size:16px">CRM</b></div></div>
     <nav id="nav"></nav>
-    <div class="pie"><div class="temas txt" id="temas"><button data-t="claro" title="Modo claro"></button><button data-t="oscuro" title="Modo oscuro"></button><button data-t="auto" title="Igual que mi compu"></button></div>
+    <div class="pie"><div class="temas txt" id="temas"><button data-t="claro" title="Modo claro"></button><button data-t="suave" title="Modo suave (intermedio)"></button><button data-t="oscuro" title="Modo oscuro"></button><button data-t="auto" title="Igual que mi compu"></button></div>
       <div class="fila" style="gap:6px;flex-wrap:nowrap"><button class="btn ico" id="tema" title="Cambiar modo claro / oscuro"></button><button class="btn ico" id="plegar" title="Plegar menú">⇤</button><button class="btn ico" id="salir" title="Salir"></button></div></div>
   </aside>
   <div id="main">
@@ -284,7 +284,7 @@ tr:last-child td{border-bottom:0}
       <div class="fila" style="gap:8px"><div class="av" id="yo-av" style="background:var(--bl);color:#fff;border:0"></div><div><div id="yo-nombre" style="font-weight:600;font-size:13px"></div><div id="yo-rol" class="muted" style="font-size:11.5px"></div></div></div></div>
     <div class="vista" id="v-chats">
       <section id="lista"><div class="top">
-        <div class="entre"><div class="logo"><div class="u marca-letra" style="width:30px;height:30px;font-size:15px">U</div><b class="marca-nombre" style="font-size:15px">CRM</b></div><div class="fila" style="gap:4px"><button class="btn ico" id="tema2" title="Modo claro / oscuro"></button><button class="btn ico" id="salir2" title="Salir"></button></div></div>
+        <div class="entre"><div class="logo"><div class="u marca-letra" style="width:30px;height:30px;font-size:15px">U</div><b class="marca-nombre" style="font-size:15px">CRM</b></div><div class="fila" style="gap:4px"><button class="btn ico" id="tema2" title="Cambiar modo: claro · suave · oscuro"></button><button class="btn ico" id="salir2" title="Salir"></button></div></div>
         <div class="atajos" id="atajos"></div>
         <input id="buscar" placeholder="Buscar nombre o número…" aria-label="Buscar">
         <div class="fila" style="gap:6px;flex-wrap:nowrap"><select id="carpeta" style="flex:1"></select></div>
@@ -321,7 +321,7 @@ tr:last-child td{border-bottom:0}
 const CONFIG = {
   nombre: 'CRM UNBOX',          // nombre que se ve arriba y en el login
   letra: 'U',                   // letra del logo
-  colorMarca: '#FF7A1A',        // color principal
+  colorMarca: '#0FA968',        // color principal (verde Unbox)
   supabaseUrl: 'https://vqkeoibwqzlyudbuonxv.supabase.co',
   supabaseKey: 'sb_publishable_DRVRaOR_vWvxtWNKF7vt9A_anDTWMM6',
   dominioUsuarios: 'crm-unbox.local',
@@ -360,9 +360,10 @@ document.querySelectorAll('.marca-nombre').forEach((e) => e.textContent = CONFIG
 document.querySelectorAll('.marca-letra').forEach((e) => e.textContent = CONFIG.letra);
 const guardarLocal = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
 const leerLocal = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+function aplicarTema(r) { const de = document.documentElement; de.dataset.tema = r === 'suave' ? 'oscuro' : r; de.dataset.variante = r === 'suave' ? 'suave' : ''; }
 const temaReal = (t) => t === 'auto' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'oscuro' : 'claro') : t;
 let temaElegido = leerLocal('crm_tema') || 'claro';
-document.documentElement.dataset.tema = temaReal(temaElegido);
+aplicarTema(temaReal(temaElegido));
 
 const FALLO = 'No pude conectarme con el servidor. Abre el CRM en Google Chrome y revisa que tengas internet.';
 if (!window.supabase) { document.getElementById('cargando-txt').textContent = FALLO; throw new Error('sin libreria'); }
@@ -492,9 +493,12 @@ $('#f-login').addEventListener('submit', async (ev) => {
 });
 $('#salir').innerHTML = ic('salir');
 $('#salir').onclick = async () => { if (canal) sb.removeChannel(canal); await sb.auth.signOut(); location.reload(); };
-function pintarTema() { $$('#temas button').forEach((b) => { b.innerHTML = b.dataset.t === 'claro' ? ic('sol') : b.dataset.t === 'oscuro' ? ic('luna') : '<svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>'; b.classList.toggle('on', b.dataset.t === temaElegido); }); $('#tema2').innerHTML = ic(document.documentElement.dataset.tema === 'oscuro' ? 'sol' : 'luna'); $('#tema').innerHTML = ic(document.documentElement.dataset.tema === 'oscuro' ? 'sol' : 'luna'); }
-function ponerTema(t) { temaElegido = t; document.documentElement.dataset.tema = temaReal(t); guardarLocal('crm_tema', t); pintarTema(); }
-$('#tema').onclick = () => ponerTema(document.documentElement.dataset.tema === 'oscuro' ? 'claro' : 'oscuro');
+const ICO_SUAVE = '<svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/></svg>';
+const ICO_AUTO = '<svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>';
+function temaActual() { return document.documentElement.dataset.variante === 'suave' ? 'suave' : document.documentElement.dataset.tema; }
+function pintarTema() { $$('#temas button').forEach((b) => { b.innerHTML = b.dataset.t === 'claro' ? ic('sol') : b.dataset.t === 'oscuro' ? ic('luna') : b.dataset.t === 'suave' ? ICO_SUAVE : ICO_AUTO; b.classList.toggle('on', b.dataset.t === temaElegido); }); const sig = { claro: ICO_SUAVE, suave: ic('luna'), oscuro: ic('sol') }[temaActual()]; $('#tema2').innerHTML = sig; $('#tema').innerHTML = sig; }
+function ponerTema(t) { temaElegido = t; aplicarTema(temaReal(t)); guardarLocal('crm_tema', t); pintarTema(); }
+$('#tema').onclick = () => ponerTema({ claro: 'suave', suave: 'oscuro', oscuro: 'claro' }[temaActual()]);
 $('#temas').onclick = (e) => { const b = e.target.closest('button'); if (b) ponerTema(b.dataset.t); };
 $('#plegar').onclick = () => { $('#side').classList.toggle('mini'); guardarLocal('crm_mini', $('#side').classList.contains('mini') ? '1' : ''); };
 if (leerLocal('crm_mini')) $('#side').classList.add('mini');
@@ -596,11 +600,16 @@ async function cargarConvs() {
   const { data, error } = await sb.from('conversaciones').select('*, contactos(id,nombre,telefono,dni,riesgo,notas,created_at), conversacion_etiquetas(etiqueta_id)').order('ultima_actividad', { ascending: false }).limit(500);
   if (error) { toast('No pude cargar los chats: ' + error.message); return; }
   convs = data || [];
+  if (sel && vistaActual === 'chats' && !document.hidden) { const n = convs.find((c) => c.id === sel.id); if (n && n.no_leidos) { n.no_leidos = 0; sb.rpc('marcar_leido', { p_conv: n.id }); } }
   if (sel) { const n = convs.find((c) => c.id === sel.id); if (n) { const cambioModo = n.modo_ia !== sel.modo_ia; sel = n; pintarCabecera(); if (cambioModo) pintarBanner(); pintarSugerencia(); } }
   pintarCarpetas(); pintarLista();
+  contarNoLeidos();
+}
+function contarNoLeidos() {
   const nl = convs.filter((c) => c.no_leidos > 0 && (esJefa() || c.asignada_a === yo.id || !c.asignada_a)).length;
   const n = $('#n-chats'); if (n) { n.textContent = nl; n.classList.toggle('hidden', !nl); }
 }
+document.addEventListener('visibilitychange', () => { if (!document.hidden && sel && sel.no_leidos && vistaActual === 'chats') { sel.no_leidos = 0; sb.rpc('marcar_leido', { p_conv: sel.id }); pintarLista(); contarNoLeidos(); } });
 function visibles() { return veTodosLosChats() ? convs : convs.filter((c) => !c.asignada_a || c.asignada_a === yo.id); }
 const tagsDe = (c) => (c.conversacion_etiquetas || []).map((x) => etiquetas.find((e) => e.id === x.etiqueta_id)).filter(Boolean);
 const chipTag = (t) => `<span class="chip" style="color:#fff;background:${esc(t.color)};border-color:${esc(t.color)}">${esc(t.nombre)}</span>`;
@@ -644,7 +653,8 @@ $('#chats').addEventListener('click', (e) => { const b = e.target.closest('.it')
 
 async function abrir(id) {
   sel = convs.find((c) => c.id === id); if (!sel) return;
-  pintarLista();
+  const teniaNL = sel.no_leidos; sel.no_leidos = 0;
+  pintarLista(); contarNoLeidos();
   $('#chat').classList.remove('vacio-m');
   $('#chat').innerHTML = `<div id="chat-head"></div><div id="banner"></div><div id="msgs"><div class="muted">Cargando…</div></div>
     <div id="sug" class="hidden"></div>
@@ -661,7 +671,7 @@ async function abrir(id) {
   pintarCabecera(); pintarBanner(); pintarSugerencia();
   const { data } = await sb.from('mensajes').select('*').eq('conversacion_id', id).order('created_at').limit(600);
   $('#msgs').innerHTML = ''; ultimoDia = null; (data || []).forEach((m) => pintarMensaje(m, false)); bajar();
-  if (sel.no_leidos) sb.rpc('marcar_leido', { p_conv: id });
+  if (teniaNL) sb.rpc('marcar_leido', { p_conv: id });
   $('#enviar').onclick = enviar;
   $('#txt').onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if ($('#pop')) { const b = $('#pop button'); if (b) b.click(); return; } enviar(); } if (e.key === 'Escape') cerrarPop(); };
   $('#txt').oninput = () => { const v = $('#txt').value; if (v.startsWith('/')) abrirRapidas(v.slice(1)); else cerrarPop(); };
@@ -2251,6 +2261,93 @@ vistaEquipo = async function (...a) {
   };
 })();
 </script>
+<style>
+/* =====================================================================
+   DISEÑO UNBOX v2 — identidad propia: verde Unbox, tres modos
+   (claro · suave · oscuro), tipografía Plus Jakarta Sans
+   ===================================================================== */
+:root{--marca:#0FA968;--marca2:#0FA9681F;--marca3:#0FA96833;--acento:#FF7A1A;--acento2:#FF7A1A1F;--ok:#0FA968;--ok2:#0FA9681F;--r:14px;
+  --side1:#0F2A1E;--side2:#0A1D15;--side-tx:#D7E6DD;--side-mu:#7FA08E;--side-hv:#173A2A;--side-bd:#1D3B2D}
+[data-tema=claro]{--bg:#F3F6F1;--p1:#FFFFFF;--p2:#FFFFFF;--p3:#F2F5F0;--bd:#E2E8DF;--bd2:#CFD8CB;--tx:#12221A;--mu:#5E6F65;--in:#FFFFFF;
+  --burb-in:#FFFFFF;--burb-out:#DCF5E7;--burb-ia:#ECE9FB;--chatbg:#EDF1EA;--som:0 1px 2px #12221A0D,0 2px 6px #12221A0F}
+[data-tema=oscuro]{--bg:#0A0F0C;--p1:#111814;--p2:#141C18;--p3:#19231E;--bd:#232F29;--bd2:#2F3D36;--tx:#E6EEE9;--mu:#93A59B;--in:#19231E;
+  --burb-in:#1A241F;--burb-out:#123826;--burb-ia:#262046;--chatbg:#0C120F;--som:none;--side1:#0C1712;--side2:#08110D}
+/* modo SUAVE: gris verdoso de contraste medio, descansa la vista */
+[data-variante=suave]{--bg:#38433D;--p1:#414D46;--p2:#44514A;--p3:#4B5851;--bd:#55635B;--bd2:#647369;--tx:#F0F4F1;--mu:#BCC8C1;--in:#4A5750;
+  --burb-in:#4C5A52;--burb-out:#3E6450;--burb-ia:#514C70;--chatbg:#3C4741;--som:0 1px 3px #0002;--side1:#25392F;--side2:#203229;--side-hv:#2F4A3C;--side-bd:#34503F;--bl:#8DBBFF;--bl2:#8DBBFF22;--mo:#C3AEFF;--mo2:#C3AEFF22;--rd:#FF9C9C;--rd2:#FF9C9C22;--am:#F7C068;--am2:#F7C06822;--marca:#2FCB86;--ok:#2FCB86}
+html,body{font-family:'Plus Jakarta Sans',Inter,system-ui,sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-weight:800;letter-spacing:-.02em}
+
+/* botones y tarjetas */
+.btn{border-radius:11px;transition:background .15s,transform .1s,box-shadow .15s}
+.btn:active{transform:scale(.98)}
+.btn.pri{background:linear-gradient(135deg,#12B874,#0C9A5E);border-color:#0C9A5E;box-shadow:0 2px 8px #0FA96840}
+.btn.pri:hover{filter:brightness(1.05)}
+.card,.met,.etapa-card{border-radius:18px}
+.chip{border-radius:8px}
+input,select,textarea{border-radius:11px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--marca3);border-color:var(--marca)}
+.sw input:checked+span{background:var(--marca)}
+
+/* logo */
+.logo .u{background:linear-gradient(140deg,#16C27C,#0B8F57);border-radius:12px;box-shadow:0 3px 10px #0FA96855;font-weight:800}
+.logo b{font-weight:800;letter-spacing:.02em}
+
+/* menú lateral: verde profundo de marca */
+#side{background:linear-gradient(180deg,var(--side1),var(--side2));color:var(--side-tx);border-right:1px solid var(--side-bd)}
+#nav .sec{color:var(--side-mu)}
+#nav button{color:var(--side-tx);border-radius:11px}
+#nav button:hover{background:var(--side-hv);color:#fff}
+#nav button.on{background:#0FA9682E;color:#6EE7B0;box-shadow:inset 3px 0 0 #2BD48C}
+#nav button .n{background:var(--acento)}
+#side .pie{border-top:1px solid var(--side-bd)}
+.temas{background:#00000033}
+.temas button{color:var(--side-mu)}
+.temas button.on{background:#0FA96833;color:#8EF0C2}
+#side .pie .btn.ico{background:#00000033;border-color:var(--side-bd);color:var(--side-tx)}
+
+/* barras y pestañas */
+#topbar{background:var(--p1);border-bottom:1px solid var(--bd)}
+.tabs{border-radius:12px}
+.tabs button{border-radius:9px}
+.tabs button.on{background:var(--marca);color:#fff;box-shadow:0 2px 6px #0FA96840}
+[data-tema=oscuro] .tabs button.on{background:var(--marca);color:#fff}
+.tabs-grandes button.on,[data-tema=oscuro] .tabs-grandes button.on{background:var(--marca);color:#fff}
+.chips-estado button.on,[data-tema=oscuro] .chips-estado button.on{background:var(--marca);border-color:var(--marca);color:#fff}
+.seg2 button.on{color:var(--marca)}
+
+/* lista de chats: tarjetas separadas */
+#lista{background:var(--p1)}
+#chats{padding:6px 8px;display:flex;flex-direction:column;gap:4px}
+.it{border:1px solid transparent;border-radius:14px;border-left:1px solid transparent;padding:11px 12px;transition:background .15s,border-color .15s}
+.it:hover{background:var(--p3)}
+.it.sel{background:var(--marca2);border-color:var(--marca3);box-shadow:inset 3px 0 0 var(--marca)}
+.it .nom{font-weight:700}
+.nl{background:var(--marca);min-width:20px;text-align:center;padding:2px 7px;box-shadow:0 1px 4px #0FA96855}
+.av{background:linear-gradient(140deg,var(--p3),var(--bd));font-weight:700}
+#carpetas button.on{background:var(--marca2);color:var(--marca)}
+
+/* chat */
+#chat{background:var(--chatbg);background-image:radial-gradient(var(--bd) 1px,transparent 1px);background-size:22px 22px}
+#chat-head,#composer{background:var(--p1)}
+.m{border-radius:16px}
+.m.in{border-top-left-radius:5px}
+.m.out{border-top-right-radius:5px}
+.dia{border-radius:999px;font-weight:600}
+.m .wab-b{color:var(--marca)}
+#modo-comp button{border-radius:10px}
+#modo-comp button.on{background:var(--marca);border-color:var(--marca)}
+#ficha{background:var(--p1)}
+
+/* tablas y tablero */
+.colk{border-radius:16px}
+table th{letter-spacing:.03em}
+
+/* ajustes del modo suave para piezas con colores fijos */
+[data-variante=suave] .avisopp{background:#3B3A26;border-color:#56553A;color:#F2E7B5}
+[data-variante=suave] #composer.nota textarea{background:#3E3624;color:#F6E3B0}
+[data-variante=suave] .wa-prev .bb{background:#2B5A47}
+</style>
 <script>iniciar();</script>
 </body>
 </html>
