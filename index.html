@@ -514,7 +514,7 @@ const MENU = [
   { sec: 'Ventas' },
   { v: 'pedidos', t: 'Pedidos', i: 'pedido' },
   { v: 'carritos', t: 'Carritos abandonados', i: 'shopify', sub: true },
-  { v: 'embudo', t: 'Embudo de clientes', i: 'embudo' },
+  { v: 'embudo', t: 'CRM de clientes', i: 'embudo' },
   { v: 'metricas', t: 'Métricas del chat', i: 'reloj' },
   { sec: 'Tienda y bot' },
   { v: 'catalogo', t: 'Productos', i: 'catalogo' },
@@ -533,7 +533,7 @@ const SECCIONES = MENU.filter((m) => m.v);
 function puede(v) {
   if (!yo) return false;
   if (yo.rol === 'admin') return true;
-  if (v === 'chats') return true;
+  if (v === 'chats' || v === 'embudo') return true;
   if (v === 'equipo') return false;
   const p = permisos[yo.rol];
   if (!p) return yo.rol === 'supervisora' ? v !== 'equipo' : ['embudo', 'pedidos', 'rapidas'].includes(v);
@@ -982,7 +982,7 @@ let filtroEmbAsesora = '';
 async function vistaEmbudo(soloPintar) {
   const cont = $('#p-embudo');
   if (!soloPintar || !cont.innerHTML) {
-    cont.innerHTML = `<div class="cab"><div><h2>Embudo de clientes</h2><p>El bot clasifica a cada cliente según su interés. Arrastra una tarjeta para cambiarla de etapa.</p></div>
+    cont.innerHTML = `<div class="cab"><div><h2>CRM de clientes</h2><p>Todos tus clientes ordenados por etapa. El bot los clasifica solo; tú o las asesoras pueden arrastrar una tarjeta para moverla.</p></div>
       <div class="fila"><input id="emb-q" placeholder="Buscar…" style="width:200px">${esJefa() ? `<select id="emb-a" style="width:auto"><option value="">Todas las asesoras</option>${equipo.filter((e) => e.activo).map((e) => `<option value="${e.id}">${esc(e.nombre)}</option>`).join('')}</select>` : ''}</div></div>
       <div class="tablero" id="emb-t"></div>`;
     $('#emb-q').oninput = () => pintarEmbudo();
@@ -2355,7 +2355,7 @@ table th{letter-spacing:.03em}
 </style>
 <script>
 /* ---------- auto-actualización: si hay versión nueva publicada, recarga sola ---------- */
-const CRM_VERSION='2026-11-25-4';
+const CRM_VERSION='2026-11-25-5';
 async function revisarVersion() {
   try {
     const t = await fetch(location.pathname + '?nv=' + Date.now(), { cache: 'no-store' }).then((r) => r.text());
@@ -2366,6 +2366,357 @@ async function revisarVersion() {
 setTimeout(revisarVersion, 3000);
 setInterval(revisarVersion, 3 * 60 * 1000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) revisarVersion(); });
+</script>
+<style>
+.tags-box{display:flex;flex-wrap:wrap;gap:6px}
+.tag-b{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:5px 11px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--c);color:var(--c);background:transparent;transition:.15s}
+.tag-b:hover{background:color-mix(in srgb,var(--c) 12%,transparent)}
+.tag-b.on{background:var(--c);color:#fff}
+.tag-b.on:before{content:"✓"}
+.tag-add{border:1.5px dashed var(--bd2);color:var(--mu);background:none;border-radius:999px;padding:5px 11px;font-size:12px;font-weight:600}
+.k-tit{font-size:11.5px;font-weight:700;letter-spacing:.05em;color:var(--mu);text-transform:uppercase}
+.seg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.seg{background:var(--p2);border:1px solid var(--bd);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:8px;position:relative}
+.seg.listo{border-color:var(--marca);box-shadow:0 0 0 3px var(--marca2)}
+.seg .num{font-size:34px;font-weight:800;letter-spacing:-.03em;line-height:1}
+.seg .listo-b{position:absolute;top:12px;right:12px;background:var(--marca);color:#fff;border-radius:999px;font-size:11px;font-weight:700;padding:3px 9px}
+.tpl{border:1px solid var(--bd);border-radius:12px;padding:10px 12px;cursor:pointer;display:flex;flex-direction:column;gap:4px}
+.tpl:hover{background:var(--p3)}
+.tpl.on{border-color:var(--marca);box-shadow:0 0 0 2px var(--marca2)}
+.tpl .tx{font-size:12.5px;color:var(--mu);white-space:pre-wrap}
+.prev-wa{background:var(--burb-out);border-radius:12px;border-top-right-radius:4px;padding:9px 11px;white-space:pre-wrap;font-size:13.5px;line-height:1.45}
+.rm-alerta{display:flex;align-items:center;gap:14px;background:linear-gradient(120deg,var(--marca2),transparent);border:1px solid var(--marca3);border-radius:18px;padding:14px 18px;flex-wrap:wrap}
+#nav button .n.rm{background:var(--marca)}
+</style>
+<script>
+/* =====================================================================
+   ETIQUETAS (varias por chat, editables) · ETAPAS PERSONALIZADAS
+   PLANTILLAS DE WHATSAPP · REMARKETING MASIVO CON AVISO DE LA IA
+   ===================================================================== */
+
+/* ---------- etapas del embudo personalizables (nombre y color) ---------- */
+async function cargarEtapasCustom() {
+  try {
+    const { data } = await sb.rpc('ajuste_publico', { p_clave: 'etapas_custom' });
+    const m = data ? JSON.parse(data) : {};
+    CONFIG.etapas.forEach((e) => { if (m[e.id]?.nombre) e.nombre = m[e.id].nombre; if (m[e.id]?.color) e.color = m[e.id].color; });
+  } catch (_) { /* sin personalizar */ }
+}
+const _cargarRapidas14 = cargarRapidas;
+cargarRapidas = async function (...a) { await cargarEtapasCustom(); revisarRemarketing(); return _cargarRapidas14.apply(this, a); };
+
+/* ---------- etiquetas arriba en la ficha (varias a la vez) ---------- */
+async function alternarEtiqueta(c, id) {
+  const tiene = (c.conversacion_etiquetas || []).some((x) => x.etiqueta_id === id);
+  if (tiene) { await sb.from('conversacion_etiquetas').delete().eq('conversacion_id', c.id).eq('etiqueta_id', id); c.conversacion_etiquetas = c.conversacion_etiquetas.filter((x) => x.etiqueta_id !== id); }
+  else { const { error } = await sb.from('conversacion_etiquetas').insert({ conversacion_id: c.id, etiqueta_id: id }); if (error) return toast(error.message); c.conversacion_etiquetas = [...(c.conversacion_etiquetas || []), { etiqueta_id: id }]; }
+  pintarCabecera(); pintarLista(); pintarTagsFicha();
+}
+function pintarTagsFicha() {
+  const box = $('#tags-ficha'); if (!box || !sel) return;
+  const ya = tagsDe(sel).map((t) => t.id);
+  const orden = [...etiquetas].sort((a, b) => (ya.includes(b.id) - ya.includes(a.id)) || (a.orden || 0) - (b.orden || 0) || a.nombre.localeCompare(b.nombre));
+  box.innerHTML = orden.map((t) => `<button class="tag-b ${ya.includes(t.id) ? 'on' : ''}" style="--c:${esc(t.color)}" data-tg="${t.id}">${esc(t.nombre)}</button>`).join('')
+    + `<button class="tag-add" id="tg-nueva">+ Nueva</button>`;
+  $$('[data-tg]', box).forEach((b) => b.onclick = () => alternarEtiqueta(sel, b.dataset.tg));
+  $('#tg-nueva').onclick = () => nuevaEtiqueta(sel);
+}
+function nuevaEtiqueta(c) {
+  const m = abrirModal(`<h3>Nueva etiqueta</h3>
+    <label>Nombre<input id="ne-n" placeholder="Ej. No adelantó, Recompra, VIP, Llamar mañana" maxlength="30"></label>
+    <label>Color<div class="fila" id="ne-cols" style="gap:6px">${COLORES_TAG.map((x, i) => `<button class="tag-b ${i === 0 ? 'on' : ''}" style="--c:${x};padding:5px 9px" data-col="${x}"> </button>`).join('')}</div></label>
+    <div class="fila" style="justify-content:flex-end"><button class="btn" data-cerrar>Cancelar</button><button class="btn pri" id="ne-ok">Crear y poner</button></div>`);
+  let col = COLORES_TAG[0];
+  $$('[data-col]', m).forEach((b) => b.onclick = () => { col = b.dataset.col; $$('[data-col]', m).forEach((x) => x.classList.toggle('on', x === b)); });
+  $('#ne-n').focus();
+  $('#ne-ok').onclick = async () => {
+    const n = $('#ne-n').value.trim(); if (!n) return;
+    const { data, error } = await sb.from('etiquetas').insert({ nombre: n, color: col }).select().single();
+    if (error) return toast(error.message);
+    etiquetas.push(data); cerrarModal(); if (c) await alternarEtiqueta(c, data.id);
+  };
+}
+const COLORES_TAG = ['#0FA968', '#2563EB', '#7C3AED', '#DB2777', '#EA580C', '#D97706', '#0891B2', '#DC2626', '#475569', '#65A30D'];
+
+function gestionarEtiquetas() {
+  const jefa = esJefa();
+  const m = abrirModal(`<h3>Etiquetas y etapas</h3>
+    <p class="muted" style="margin:0;font-size:13px">Las <b>etiquetas</b> son libres: un chat puede tener varias. Las <b>etapas</b> son el termómetro del cliente (una sola) y la IA las usa para calificar.</p>
+    <div class="k-tit">Etiquetas</div>
+    <div class="col" id="ge-lista" style="gap:6px;max-height:300px;overflow:auto">${etiquetas.map((t) => `<div class="fila" style="gap:6px;flex-wrap:nowrap" data-et="${t.id}">
+      <input type="color" value="${esc(t.color)}" style="width:42px;padding:2px" ${jefa ? '' : 'disabled'}><input value="${esc(t.nombre)}" style="flex:1" ${jefa ? '' : 'disabled'}>
+      ${jefa ? `<button class="btn ico peligro" data-borrar-et="${t.id}" title="Borrar etiqueta">✕</button>` : ''}</div>`).join('')}</div>
+    <button class="tag-add" id="ge-nueva" style="align-self:flex-start">+ Nueva etiqueta</button>
+    ${jefa ? `<div class="k-tit" style="margin-top:6px">Etapas del embudo</div>
+    <div class="col" style="gap:6px">${CONFIG.etapas.map((e) => `<div class="fila" style="gap:6px;flex-wrap:nowrap" data-etp="${e.id}"><input type="color" value="${e.color}" style="width:42px;padding:2px"><input value="${esc(e.nombre)}" style="flex:1"></div>`).join('')}</div>` : '<div class="muted" style="font-size:12px">Solo administración puede renombrar o borrar.</div>'}
+    <div class="fila" style="justify-content:flex-end"><button class="btn" data-cerrar>Cerrar</button>${jefa ? '<button class="btn pri" id="ge-ok">Guardar cambios</button>' : ''}</div>`, true);
+  $('#ge-nueva', m).onclick = () => nuevaEtiqueta(null);
+  $$('[data-borrar-et]', m).forEach((b) => b.onclick = async () => {
+    const t = etiquetas.find((x) => x.id === b.dataset.borrarEt);
+    if (!confirm(`¿Borrar la etiqueta "${t?.nombre}"? Se quitará de todos los chats.`)) return;
+    const { error } = await sb.from('etiquetas').delete().eq('id', t.id); if (error) return toast(error.message);
+    etiquetas = etiquetas.filter((x) => x.id !== t.id); recargar(); gestionarEtiquetas();
+  });
+  const ok = $('#ge-ok', m); if (!ok) return;
+  ok.onclick = async () => {
+    ok.disabled = true;
+    for (const fila of $$('[data-et]', m)) {
+      const t = etiquetas.find((x) => x.id === fila.dataset.et); const [c, n] = $$('input', fila);
+      if (t && (t.color !== c.value || t.nombre !== n.value.trim()) && n.value.trim()) {
+        const { error } = await sb.from('etiquetas').update({ nombre: n.value.trim(), color: c.value }).eq('id', t.id);
+        if (error) { toast(error.message); ok.disabled = false; return; } t.nombre = n.value.trim(); t.color = c.value;
+      }
+    }
+    const cust = {}; $$('[data-etp]', m).forEach((f) => { const [c, n] = $$('input', f); cust[f.dataset.etp] = { nombre: n.value.trim(), color: c.value }; });
+    const { error } = await sb.rpc('ajuste_guardar', { p_clave: 'etapas_custom', p_valor: JSON.stringify(cust) });
+    if (error) { toast(error.message); ok.disabled = false; return; }
+    await cargarEtapasCustom(); cerrarModal(); toast('Cambios guardados'); pintarLista(); if (sel) { pintarCabecera(); pintarFicha(); }
+  };
+}
+
+const _pintarFicha14 = pintarFicha;
+pintarFicha = async function (...a) {
+  await _pintarFicha14.apply(this, a);
+  const fc = $('#ficha-c'); if (!fc) return;
+  const card = $$('.card', fc).find((x) => x.textContent.includes('CALIFICACIÓN')); if (!card) return;
+  const tit = card.querySelector('.k'); if (tit) tit.outerHTML = '<div class="entre" style="margin:12px 0 8px"><span class="k-tit">Etapa del cliente <span style="font-weight:500;text-transform:none;letter-spacing:0">(una sola)</span></span></div>';
+  card.insertAdjacentHTML('afterbegin', `<div class="entre" style="margin-bottom:8px"><span class="k-tit">🏷️ Etiquetas <span style="font-weight:500;text-transform:none;letter-spacing:0">(puedes marcar varias)</span></span><button class="btn sm" id="tg-admin" title="Crear, renombrar o borrar">✎ Editar</button></div><div class="tags-box" id="tags-ficha"></div>`);
+  fc.insertBefore(card, fc.children[1] || null);
+  $('#tg-admin').onclick = gestionarEtiquetas;
+  pintarTagsFicha();
+};
+
+/* ---------- plantillas de WhatsApp ---------- */
+let PLANTILLAS = null;
+async function cargarPlantillas(forzar) {
+  if (PLANTILLAS && !forzar) return PLANTILLAS;
+  const r = await llamar('plantillas', { accion: 'listar' });
+  PLANTILLAS = r.plantillas || []; return PLANTILLAS;
+}
+const ESTADO_TPL = { APPROVED: ['✅ Aprobada', 'var(--ok)'], PENDING: ['⏳ En revisión', 'var(--am)'], REJECTED: ['❌ Rechazada', 'var(--rd)'], PAUSED: ['⏸ Pausada', 'var(--am)'], DISABLED: ['⛔ Desactivada', 'var(--rd)'] };
+const previaTpl = (t, vars, nombre) => String(t.texto || '').replace(/\{\{(\d+)\}\}/g, (_, i) => String(vars[i - 1] ?? (i == 1 ? '{nombre}' : '')).replace(/\{nombre\}/gi, nombre || 'María'));
+
+function selectorPlantilla({ titulo, boton, alElegir, nombreCliente, soloAprobadas = true }) {
+  const m = abrirModal(`<h3>${titulo}</h3><div id="tp-cuerpo" class="col"><div class="muted">Cargando plantillas de Meta…</div></div>`, true);
+  let elegida = null, vars = [];
+  const pintar = (lista) => {
+    const aprob = lista.filter((t) => t.estado === 'APPROVED'), otras = lista.filter((t) => t.estado !== 'APPROVED');
+    $('#tp-cuerpo', m).innerHTML = `<div class="entre"><span class="muted" style="font-size:13px">Las plantillas las aprueba Meta. Sirven para escribir a clientes con la <b>ventana de 24 h cerrada</b>.</span>${esJefa() ? '<button class="btn sm" id="tp-crear">＋ Crear plantilla</button>' : ''}</div>
+      <div class="grid2" style="align-items:start"><div class="col" style="gap:8px;max-height:380px;overflow:auto">${aprob.length ? aprob.map((t, i) => `<div class="tpl" data-i="${i}"><div class="entre"><b>${esc(t.nombre)}</b><span class="chip">${t.categoria === 'MARKETING' ? 'Marketing' : t.categoria === 'UTILITY' ? 'Utilidad' : esc(t.categoria || '')}</span></div><div class="tx">${esc(String(t.texto).slice(0, 160))}</div></div>`).join('') : '<div class="muted">Aún no tienes plantillas aprobadas. Crea una con ＋ Crear plantilla.</div>'}
+        ${!soloAprobadas || otras.length ? `<details><summary class="muted" style="cursor:pointer;font-size:12.5px">Otras (${otras.length}): en revisión o rechazadas</summary>${otras.map((t) => `<div class="tpl" style="cursor:default;margin-top:6px"><div class="entre"><b>${esc(t.nombre)}</b><span style="font-size:12px;color:${(ESTADO_TPL[t.estado] || ['', 'var(--mu)'])[1]}">${(ESTADO_TPL[t.estado] || [t.estado])[0]}</span></div><div class="tx">${esc(String(t.texto).slice(0, 120))}${t.motivo && t.motivo !== 'NONE' ? `<br><b>Motivo:</b> ${esc(t.motivo)}` : ''}</div></div>`).join('')}</details>` : ''}</div>
+        <div class="col" id="tp-det"><div class="muted" style="font-size:13px">Elige una plantilla para ver cómo le llega al cliente.</div></div></div>
+      <div class="fila" style="justify-content:flex-end"><button class="btn" data-cerrar>Cancelar</button><button class="btn pri" id="tp-ok" disabled>${boton}</button></div>`;
+    $$('[data-cerrar]', m).forEach((b) => b.onclick = cerrarModal);
+    const crear = $('#tp-crear', m); if (crear) crear.onclick = () => crearPlantilla(() => selectorPlantilla({ titulo, boton, alElegir, nombreCliente }));
+    $$('.tpl[data-i]', m).forEach((d) => d.onclick = () => {
+      elegida = aprob[d.dataset.i]; vars = Array.from({ length: elegida.variables }, (_, k) => (k === 0 ? '{nombre}' : ''));
+      $$('.tpl[data-i]', m).forEach((x) => x.classList.toggle('on', x === d));
+      const det = () => {
+        $('#tp-det', m).innerHTML = `${vars.map((v, k) => `<label>Dato {{${k + 1}}}${k === 0 ? ' · usa {nombre} para el nombre del cliente' : ''}<input data-v="${k}" value="${esc(v)}"></label>`).join('')}
+          ${['IMAGE', 'VIDEO', 'DOCUMENT'].includes(elegida.cabecera) ? `<label>${elegida.cabecera === 'IMAGE' ? '🖼️ Imagen' : elegida.cabecera === 'VIDEO' ? '🎬 Video' : '📄 Archivo'} que va arriba del mensaje<input type="file" id="tp-file" accept="${elegida.cabecera === 'IMAGE' ? 'image/*' : elegida.cabecera === 'VIDEO' ? 'video/mp4' : '*/*'}"><input type="hidden" id="tp-img"><span class="muted" id="tp-fe" style="font-size:12px"></span></label>` : ''}
+          <div class="k-tit">Así le llega</div><div class="prev-wa" id="tp-prev"></div>${elegida.botones?.length ? `<div class="fila" style="gap:6px">${elegida.botones.map((b) => `<span class="chip" style="color:var(--marca)">↩ ${esc(b)}</span>`).join('')}</div>` : ''}`;
+        const prev = () => { $('#tp-prev', m).innerHTML = fmtWA(previaTpl(elegida, vars, nombreCliente)); };
+        $$('[data-v]', m).forEach((inp) => inp.oninput = () => { vars[inp.dataset.v] = inp.value; prev(); });
+        prev();
+        const f = $('#tp-file', m); if (f) f.onchange = async () => { const fl = f.files[0]; if (!fl) return; $('#tp-fe', m).textContent = 'Subiendo…'; $('#tp-ok', m).disabled = true; try { const r = await subirArchivo(fl, 'plantillas'); $('#tp-img', m).value = r.url; $('#tp-fe', m).textContent = '✅ Listo: ' + fl.name; } catch (e) { $('#tp-fe', m).textContent = e.message; } $('#tp-ok', m).disabled = false; };
+      };
+      det(); $('#tp-ok', m).disabled = false;
+    });
+    $('#tp-ok', m).onclick = async () => { if (!elegida) return; const b = $('#tp-ok', m); b.disabled = true; try { await alElegir(elegida, vars, $('#tp-img', m)?.value?.trim() || null); } catch (e) { toast(e.message); b.disabled = false; } };
+  };
+  cargarPlantillas(true).then(pintar).catch((e) => { $('#tp-cuerpo', m).innerHTML = `<div class="err">${esc(e.message)}</div><div class="fila" style="justify-content:flex-end"><button class="btn" data-cerrar>Cerrar</button></div>`; $$('[data-cerrar]', m).forEach((b) => b.onclick = cerrarModal); });
+}
+
+function crearPlantilla(despues) {
+  const m = abrirModal(`<h3>Crear plantilla de WhatsApp</h3>
+    <p class="muted" style="margin:0;font-size:13px">Meta la revisa (normalmente en minutos, a veces hasta 24 h). Escribe <b>{nombre}</b> donde quieras el nombre del cliente. Evita palabras como "gratis 100%", "urgente" o muchas mayúsculas para que no la rechacen.</p>
+    <label>Nombre interno<input id="cp-n" placeholder="ej. rescate_adelanto" maxlength="50"></label>
+    <label>Tipo<select id="cp-cat"><option value="MARKETING">Marketing (promociones, rescate, descuentos)</option><option value="UTILITY">Utilidad (avisos de tu pedido, recordatorio de pago)</option></select></label>
+    <label>Mensaje<textarea id="cp-t" rows="6" maxlength="1000">Hola {nombre} 👋 Tu pedido sigue separado ✅ Solo falta tu adelanto para enviártelo hoy mismo 🚚 ¿Te paso el QR de Yape?</textarea></label>
+    <label>Botones (opcional, hasta 3, separados por coma)<input id="cp-b" placeholder="Sí, quiero, Pásame el QR, Ya no"></label>
+    <div class="err" id="cp-e"></div>
+    <div class="fila" style="justify-content:flex-end"><button class="btn" data-cerrar>Cancelar</button><button class="btn pri" id="cp-ok">Enviar a revisión</button></div>`);
+  $('#cp-ok', m).onclick = async () => {
+    const b = $('#cp-ok', m); b.disabled = true; $('#cp-e').textContent = '';
+    try {
+      const r = await llamar('plantillas', { accion: 'crear', nombre: $('#cp-n').value, categoria: $('#cp-cat').value, texto: $('#cp-t').value, botones: $('#cp-b').value.split(',') });
+      toast(`Plantilla "${r.nombre}" enviada a Meta: ${r.estado === 'APPROVED' ? 'ya está aprobada ✅' : 'en revisión ⏳'}`); PLANTILLAS = null; cerrarModal(); if (despues) despues();
+    } catch (e) { $('#cp-e').textContent = e.message; b.disabled = false; }
+  };
+}
+
+function enviarPlantillaChat() {
+  if (!sel) return;
+  const nombre = (sel.contactos?.nombre || '').split(' ')[0];
+  selectorPlantilla({ titulo: '📋 Enviar plantilla a ' + esc(sel.contactos?.nombre || '+' + sel.contactos?.telefono), boton: 'Enviar plantilla', nombreCliente: nombre,
+    alElegir: async (t, vars, img) => { await llamar('plantillas', { accion: 'enviar', conversacion_id: sel.id, plantilla: t.nombre, idioma: t.idioma, variables: vars, imagen_url: img }); cerrarModal(); toast('Plantilla enviada ✅'); } });
+}
+const _abrir14 = abrir;
+abrir = async function (...a) {
+  const r = await _abrir14.apply(this, a);
+  const herr = $('#composer .herr');
+  if (herr && !$('#b-tpl')) {
+    herr.insertAdjacentHTML('beforeend', `<button class="btn sm" id="b-tpl" title="Enviar una plantilla aprobada (sirve con la ventana de 24 h cerrada)" style="margin-left:4px">📋 Plantilla</button>`);
+    $('#b-tpl').onclick = enviarPlantillaChat;
+  }
+  return r;
+};
+
+/* ---------- remarketing: segmentos que detecta la IA + envío masivo ---------- */
+const TEXTO_SEG = {
+  no_adelanto: 'Hola {nombre} 👋 Tu pedido sigue separado ✅\n\nSolo falta tu adelanto para enviártelo hoy mismo 🚚 ¿Te paso el QR de Yape? 😊',
+  calientes: 'Hola {nombre} 🔥 Te guardé el precio de promoción *solo por hoy*.\n\n¿Te lo separo para enviártelo? 📦',
+  frios: 'Hola {nombre} 🎁 Solo por hoy tenemos un *regalo extra* para ti con tu pedido.\n\n¿Quieres que te cuente? 😊',
+  muertos: 'Hola {nombre} 👋 ¡Te extrañamos! Hoy tenemos una *oferta especial* para ti 🎁\n\n¿Te paso los detalles?',
+};
+let SEGS = null;
+async function revisarRemarketing() {
+  try {
+    const { data } = await sb.rpc('segmentos_remarketing'); if (!data) return null;
+    SEGS = data;
+    const listos = (data.segmentos || []).filter((s) => !s.etiqueta && s.ids.length >= data.umbral);
+    const b = $('#nav button[data-v="remarketing"]');
+    if (b) { b.querySelector('.n.rm')?.remove(); if (listos.length) b.insertAdjacentHTML('beforeend', `<span class="n rm">${listos.reduce((s, x) => s + x.ids.length, 0)}</span>`); }
+    return data;
+  } catch (_) { return null; }
+}
+setInterval(() => { if (yo) revisarRemarketing(); }, 10 * 60 * 1000);
+
+MENU.splice(MENU.findIndex((m) => m.v === 'embudo') + 1, 0, { v: 'remarketing', t: 'Remarketing', i: 'enviar' });
+SECCIONES.splice(0, SECCIONES.length, ...MENU.filter((m) => m.v));
+VISTAS.remarketing = () => vistaRemarketing();
+document.querySelector('#main').insertAdjacentHTML('beforeend', '<div class="vista hidden" id="v-remarketing"><div class="pagina" id="p-remarketing"></div></div>');
+const _pintarMenu14 = pintarMenu;
+pintarMenu = function (...a) { _pintarMenu14.apply(this, a); if (SEGS) revisarRemarketing(); };
+
+async function vistaRemarketing() {
+  const cont = $('#p-remarketing'); cont.innerHTML = '<div class="muted">La IA está revisando a tus clientes…</div>';
+  const [data, { data: camps }] = await Promise.all([revisarRemarketing(), sb.rpc('campanas_resumen')]);
+  if (!data) { cont.innerHTML = '<div class="err">No se pudo calcular.</div>'; return; }
+  const segs = data.segmentos || [], umbral = data.umbral;
+  const base = segs.filter((s) => !s.etiqueta), tags = segs.filter((s) => s.etiqueta);
+  const card = (s) => { const n = s.ids.length, listo = n >= umbral && !s.etiqueta;
+    return `<div class="seg ${listo ? 'listo' : ''}">${listo ? '<span class="listo-b">🔥 Listo para enviar</span>' : ''}
+      <div style="font-size:24px">${s.emoji}</div><div style="font-weight:700;font-size:15px">${esc(s.nombre)}</div>
+      <div class="fila" style="gap:10px;align-items:baseline"><span class="num" style="${s.color ? `color:${esc(s.color)}` : ''}">${n}</span><span class="muted" style="font-size:12px">clientes${s.en_ventana ? ` · <b style="color:var(--ok)">${s.en_ventana}</b> con ventana abierta (gratis)` : ''}</span></div>
+      <div class="muted" style="font-size:12.5px">${esc(s.descripcion)}</div>
+      ${s.sugerencia ? `<div style="font-size:12.5px;background:var(--p3);border-radius:10px;padding:8px 10px">💡 ${esc(s.sugerencia)}</div>` : ''}
+      <div class="fila" style="margin-top:auto"><button class="btn sm" data-ver="${esc(s.id)}" ${n ? '' : 'disabled'}>Ver lista</button><button class="btn sm pri" data-env="${esc(s.id)}" ${n ? '' : 'disabled'}>📣 Enviar mensaje</button></div></div>`; };
+  const listos = base.filter((s) => s.ids.length >= umbral);
+  cont.innerHTML = `<div class="cab"><div><h2>🎯 Remarketing</h2><p>La IA separa a tus clientes según cómo quedaron (con la etapa que les puso el bot) y te avisa cuando un grupo llega a <b>${umbral}</b> clientes.</p></div>
+      ${esJefa() ? `<div class="fila"><label style="flex-direction:row;align-items:center;gap:8px">Avisarme desde<input id="rm-umbral" type="number" min="1" value="${umbral}" style="width:80px">clientes</label><button class="btn sm" id="rm-umbral-ok">Guardar</button></div>` : ''}</div>
+    ${listos.length ? `<div class="rm-alerta"><div style="font-size:30px">🤖</div><div style="flex:1;min-width:220px"><b>La IA detectó ${listos.reduce((a, s) => a + s.ids.length, 0)} clientes listos para recuperar</b><div class="muted" style="font-size:13px">${listos.map((s) => `${s.emoji} ${s.ids.length} ${s.nombre.toLowerCase()}`).join(' · ')}</div></div></div>` : ''}
+    <div class="k-tit">Grupos automáticos</div><div class="seg-grid">${base.map(card).join('')}</div>
+    <div class="entre"><div class="k-tit">Por etiqueta</div><button class="btn sm" id="rm-tags">✎ Editar etiquetas</button></div>
+    <div class="seg-grid">${tags.length ? tags.map(card).join('') : '<div class="muted">Aún no tienes etiquetas.</div>'}</div>
+    <div class="k-tit">Mensajes enviados</div>
+    <div class="card" style="padding:0;overflow:auto"><table class="tabla" style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="text-align:left">${['Fecha', 'Campaña', 'Enviados', 'Fallidos', 'Respondieron', 'Compraron', 'Estado'].map((h) => `<th style="padding:10px 12px;border-bottom:1px solid var(--bd)">${h}</th>`).join('')}</tr></thead><tbody>
+      ${(camps || []).length ? camps.map((c) => `<tr><td style="padding:9px 12px;border-bottom:1px solid var(--bd)">${new Date(c.creado).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' })}</td><td style="padding:9px 12px;border-bottom:1px solid var(--bd)"><b>${esc(c.nombre)}</b><div class="muted" style="font-size:11.5px">${esc(c.plantilla || 'mensaje libre')} · por ${esc(c.por || '')}</div></td><td style="padding:9px 12px;border-bottom:1px solid var(--bd)">${c.enviados}/${c.total}</td><td style="padding:9px 12px;border-bottom:1px solid var(--bd);color:${c.fallidos ? 'var(--rd)' : 'inherit'}" title="${esc(c.errores || '')}">${c.fallidos}</td><td style="padding:9px 12px;border-bottom:1px solid var(--bd)"><b>${c.respondieron}</b></td><td style="padding:9px 12px;border-bottom:1px solid var(--bd);color:var(--ok)"><b>${c.ventas}</b></td><td style="padding:9px 12px;border-bottom:1px solid var(--bd)">${c.estado === 'terminada' ? '✅ Terminada' : '⏳ Enviando…'}</td></tr>`).join('') : '<tr><td colspan="7" class="muted" style="padding:14px">Todavía no enviaste mensajes masivos.</td></tr>'}
+    </tbody></table></div>`;
+  $('#rm-tags').onclick = gestionarEtiquetas;
+  const u = $('#rm-umbral-ok'); if (u) u.onclick = async () => { const { error } = await sb.rpc('ajuste_guardar', { p_clave: 'remarketing_umbral', p_valor: String(Math.max(1, Number($('#rm-umbral').value) || 15)) }); toast(error ? error.message : 'Listo'); vistaRemarketing(); };
+  $$('[data-ver]', cont).forEach((b) => b.onclick = () => verListaSeg(segs.find((s) => s.id === b.dataset.ver)));
+  $$('[data-env]', cont).forEach((b) => b.onclick = () => envioMasivo(segs.find((s) => s.id === b.dataset.env)));
+  if ((camps || []).some((c) => c.estado !== 'terminada')) setTimeout(() => { if (vistaActual === 'remarketing') vistaRemarketing(); }, 8000);
+}
+async function datosConvs(ids) {
+  const out = []; for (let i = 0; i < ids.length; i += 150) { const { data } = await sb.from('conversaciones').select('id, etapa, ultimo_entrante, ultimo_mensaje, monto_en_juego, contactos(nombre, telefono)').in('id', ids.slice(i, i + 150)); out.push(...(data || [])); }
+  return out.sort((a, b) => new Date(b.ultimo_entrante) - new Date(a.ultimo_entrante));
+}
+async function verListaSeg(s) {
+  const m = abrirModal(`<h3>${s.emoji} ${esc(s.nombre)} · ${s.ids.length}</h3><div id="vl" class="muted">Cargando…</div><div class="fila" style="justify-content:flex-end"><button class="btn" data-cerrar>Cerrar</button><button class="btn pri" id="vl-env">📣 Enviar mensaje</button></div>`, true);
+  $('#vl-env', m).onclick = () => envioMasivo(s);
+  const l = await datosConvs(s.ids);
+  $('#vl', m).innerHTML = `<div class="col" style="gap:0;max-height:420px;overflow:auto">${l.map((c) => `<div class="entre" style="padding:8px 4px;border-bottom:1px solid var(--bd);cursor:pointer" data-ir="${c.id}"><div><b>${esc(c.contactos?.nombre || '+' + c.contactos?.telefono)}</b><div class="muted" style="font-size:12px;max-width:430px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.ultimo_mensaje || '')}</div></div><div class="muted" style="font-size:12px;text-align:right">${hace(c.ultimo_entrante)}${c.monto_en_juego ? `<br><b style="color:var(--ok)">${din(c.monto_en_juego)}</b>` : ''}</div></div>`).join('')}</div>`;
+  $$('[data-ir]', m).forEach((d) => d.onclick = () => { cerrarModal(); ir('chats'); setTimeout(() => abrir(d.dataset.ir), 300); });
+}
+function hace(f) { if (!f) return ''; const h = (Date.now() - new Date(f)) / 3600e3; return h < 1 ? 'hace minutos' : h < 24 ? `hace ${Math.round(h)} h` : `hace ${Math.round(h / 24)} d`; }
+
+function envioMasivo(s) {
+  const n = s.ids.length, enV = s.en_ventana || 0, fuera = n - enV;
+  let tpl = null, vars = [], img = null;
+  const m = abrirModal(`<h3>📣 Mensaje para "${esc(s.nombre)}" · ${n} clientes</h3>
+    <div class="grid2" style="align-items:start">
+      <div class="col">
+        <label>Nombre de la campaña<input id="mm-nom" value="${esc(s.nombre)} · ${new Date().toLocaleDateString('es-PE')}"></label>
+        <div class="card col" style="padding:12px;gap:8px"><b>💬 Mensaje libre · ${enV} clientes</b><div class="muted" style="font-size:12.5px">Para quienes escribieron en las últimas 24 h: puedes mandar cualquier texto y <b>no tiene costo</b>.</div>
+          <textarea id="mm-txt" rows="5">${esc(TEXTO_SEG[s.id] || 'Hola {nombre} 👋 ')}</textarea></div>
+        <div class="card col" style="padding:12px;gap:8px"><b>📋 Plantilla · ${fuera} clientes</b><div class="muted" style="font-size:12.5px">Para quienes tienen la ventana cerrada, WhatsApp exige una plantilla aprobada por Meta (Meta cobra cada envío de marketing).</div>
+          <div id="mm-tpl" class="muted" style="font-size:13px">Ninguna elegida</div><button class="btn sm" id="mm-elegir">Elegir plantilla</button></div>
+      </div>
+      <div class="col"><div class="k-tit">Vista previa</div><div class="prev-wa" id="mm-prev"></div><div class="prev-wa" id="mm-prev2" style="display:none"></div>
+        <div class="muted" style="font-size:12px">{nombre} se reemplaza por el primer nombre de cada cliente. Se envía de a poco (unos 8 por segundo) y no se repite a quien ya le escribiste en las últimas 48 h.</div></div>
+    </div>
+    <div class="err" id="mm-e"></div>
+    <div class="fila" style="justify-content:flex-end"><button class="btn" data-cerrar>Cancelar</button><button class="btn pri" id="mm-ok">Enviar a ${n} clientes</button></div>`, true);
+  const prev = () => {
+    $('#mm-prev', m).innerHTML = fmtWA(($('#mm-txt').value || '').replace(/\{nombre\}/gi, 'María'));
+    const p2 = $('#mm-prev2', m); if (tpl) { p2.style.display = ''; p2.innerHTML = '<b>📋 ' + esc(tpl.nombre) + '</b><br>' + fmtWA(previaTpl(tpl, vars, 'María')); } else p2.style.display = 'none';
+  };
+  $('#mm-txt').oninput = prev; prev();
+  $('#mm-elegir', m).onclick = () => {
+    const guardado = { nom: $('#mm-nom').value, txt: $('#mm-txt').value };
+    selectorPlantilla({ titulo: 'Plantilla para la ventana cerrada', boton: 'Usar esta plantilla', nombreCliente: 'María', alElegir: async (t, v, i) => {
+      tpl = t; vars = v; img = i; cerrarModal(); envioMasivoReabrir(s, guardado, tpl, vars, img); } });
+  };
+  $('#mm-ok', m).onclick = () => lanzarMasivo(s, m, () => ({ tpl, vars, img }));
+}
+function envioMasivoReabrir(s, g, tpl, vars, img) {
+  envioMasivo(s); const m = $('#modal .card');
+  $('#mm-nom').value = g.nom; $('#mm-txt').value = g.txt;
+  $('#mm-tpl', m).innerHTML = `<b style="color:var(--marca)">${esc(tpl.nombre)}</b>`;
+  $('#mm-prev2', m).style.display = ''; $('#mm-prev2', m).innerHTML = '<b>📋 ' + esc(tpl.nombre) + '</b><br>' + fmtWA(previaTpl(tpl, vars, 'María'));
+  $('#mm-prev', m).innerHTML = fmtWA(g.txt.replace(/\{nombre\}/gi, 'María'));
+  $('#mm-ok', m).onclick = () => lanzarMasivo(s, m, () => ({ tpl, vars, img }));
+}
+async function lanzarMasivo(s, m, get) {
+  const { tpl, vars, img } = get(); const txt = $('#mm-txt').value.trim();
+  const fuera = s.ids.length - (s.en_ventana || 0);
+  if (!tpl && !txt) return ($('#mm-e').textContent = 'Escribe un mensaje o elige una plantilla.');
+  if (!tpl && fuera > 0 && !confirm(`${fuera} clientes tienen la ventana cerrada y sin plantilla no les llegará. ¿Enviar solo a los ${s.en_ventana || 0} con ventana abierta?`)) return;
+  if (!confirm(`¿Enviar el mensaje a ${s.ids.length} clientes ahora?`)) return;
+  const b = $('#mm-ok', m); b.disabled = true;
+  try {
+    const r = await llamar('plantillas', { accion: 'masivo', nombre: $('#mm-nom').value, segmento: s.id, conversacion_ids: s.ids, texto_libre: txt || null, plantilla: tpl?.nombre || null, idioma: tpl?.idioma || null, variables: vars, imagen_url: img });
+    cerrarModal(); toast(`📣 Enviando a ${r.total} clientes. Puedes seguir trabajando.`); vistaRemarketing();
+  } catch (e) { $('#mm-e').textContent = e.message; b.disabled = false; }
+}
+
+/* aviso en el Dashboard */
+const _vistaDashboard14 = vistaDashboard;
+vistaDashboard = async function (...a) {
+  const r = await _vistaDashboard14.apply(this, a);
+  const d = SEGS || await revisarRemarketing(); if (!d || !puede('remarketing')) return r;
+  const listos = (d.segmentos || []).filter((s) => !s.etiqueta && s.ids.length >= d.umbral);
+  if (listos.length && !$('#rm-dash')) $('#p-dashboard').insertAdjacentHTML('afterbegin', `<div class="rm-alerta" id="rm-dash"><div style="font-size:30px">🤖</div><div style="flex:1;min-width:220px"><b>Tienes ${listos.reduce((a, s) => a + s.ids.length, 0)} clientes listos para remarketing</b><div class="muted" style="font-size:13px">${listos.map((s) => `${s.emoji} ${s.ids.length} ${s.nombre.toLowerCase()}`).join(' · ')}</div></div><button class="btn pri" onclick="ir('remarketing')">Recuperarlos →</button></div>`);
+  return r;
+};
+</script>
+<script>
+/* ---------- CRM de clientes: etiquetas en tarjetas + filtro por etiqueta ---------- */
+let filtroEmbTag = '';
+const _pintarCabecera14 = pintarCabecera;
+pintarCabecera = function (...a) { if (!sel || !$('#chat-head')) return; return _pintarCabecera14.apply(this, a); };
+const _pintarEmbudo14 = pintarEmbudo;
+pintarEmbudo = function (...a) {
+  const fila = $('#emb-q')?.parentElement;
+  if (fila && !$('#emb-tag')) {
+    fila.insertAdjacentHTML('beforeend', `<select id="emb-tag" style="width:auto"><option value="">Todas las etiquetas</option>${etiquetas.map((t) => `<option value="${t.id}">${esc(t.nombre)}</option>`).join('')}</select><button class="btn" id="emb-tags-ed">🏷️ Etiquetas</button>`);
+    $('#emb-tag').value = filtroEmbTag;
+    $('#emb-tag').onchange = (e) => { filtroEmbTag = e.target.value; pintarEmbudo(); };
+    $('#emb-tags-ed').onclick = gestionarEtiquetas;
+  }
+  const orig = visibles;
+  if (filtroEmbTag) visibles = () => orig().filter((c) => (c.conversacion_etiquetas || []).some((x) => x.etiqueta_id === filtroEmbTag));
+  try { _pintarEmbudo14.apply(this, a); } finally { visibles = orig; }
+  $$('#emb-t .tk').forEach((tk) => {
+    const c = convs.find((x) => x.id === tk.dataset.id); if (!c) return;
+    const tg = tagsDe(c);
+    tk.querySelector('[data-abrir]')?.insertAdjacentHTML('beforebegin', `<div class="fila" style="gap:4px">${tg.map((t) => `<span class="chip" style="color:#fff;background:${esc(t.color)};border-color:${esc(t.color)};font-size:10.5px;padding:2px 7px">${esc(t.nombre)}</span>`).join('')}<button class="tag-add" style="padding:2px 8px;font-size:10.5px" data-tk-tag="${c.id}">+ etiqueta</button></div>`);
+  });
+  $$('[data-tk-tag]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); const c = convs.find((x) => x.id === b.dataset.tkTag); if (c) elegirEtiqueta(c); });
+
+};
 </script>
 <script>iniciar();</script>
 </body>
