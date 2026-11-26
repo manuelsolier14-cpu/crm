@@ -2355,7 +2355,7 @@ table th{letter-spacing:.03em}
 </style>
 <script>
 /* ---------- auto-actualización: si hay versión nueva publicada, recarga sola ---------- */
-const CRM_VERSION='2026-11-25-6';
+const CRM_VERSION='2026-11-25-7';
 async function revisarVersion() {
   try {
     const t = await fetch(location.pathname + '?nv=' + Date.now(), { cache: 'no-store' }).then((r) => r.text());
@@ -2387,6 +2387,11 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) revi
 .prev-wa{background:var(--burb-out);border-radius:12px;border-top-right-radius:4px;padding:9px 11px;white-space:pre-wrap;font-size:13.5px;line-height:1.45}
 .rm-alerta{display:flex;align-items:center;gap:14px;background:linear-gradient(120deg,var(--marca2),transparent);border:1px solid var(--marca3);border-radius:18px;padding:14px 18px;flex-wrap:wrap}
 #nav button .n.rm{background:var(--marca)}
+#emb-t .colk{flex:0 0 272px;width:272px;max-width:272px;min-width:0}
+#emb-t .colk .zona{overflow-x:hidden}
+#emb-t .tk{min-width:0;max-width:100%;overflow:hidden}
+#emb-t .tk > *{min-width:0;max-width:100%}
+#emb-t .tk .muted{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 </style>
 <script>
 /* =====================================================================
