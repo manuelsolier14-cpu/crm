@@ -65,6 +65,9 @@ main{max-width:1100px;margin:0 auto;padding:16px;display:flex;flex-direction:col
 .btn.plantilla{flex-direction:column;align-items:flex-start;text-align:left;white-space:normal;gap:4px;padding:10px 12px}
 .btn.plantilla span{font-weight:500;color:var(--mu);font-size:12.5px;line-height:1.35}
 .modal .card{max-height:90vh;overflow:auto}
+.clave{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#FFFAEB;border:1px dashed #FEC84B;border-radius:10px;padding:7px 10px;font-size:13.5px}
+.clave b{font-size:15px;letter-spacing:.05em}
+.clave .btn{margin-left:auto}
 .b-chat{background:#EFF4FF;border-color:#B2CCFF;color:#1849A9}
 .caso.foco{box-shadow:0 0 0 3px var(--marca)}
 a.zen{font-size:12px;font-weight:600;color:var(--mu)}
@@ -232,6 +235,7 @@ function tarjeta(x, n) {
       <div style="text-align:right"><div class="saldo">${soles(x.saldo)}</div>${!cerrado ? `<span class="pts" title="Puntaje de prioridad">${x.puntaje}</span>` : ''}</div></div>
     <div class="fila"><span class="tag ${x.nivel}">${NIVELES[x.nivel]?.t || x.nivel}</span><span class="motivo">${esc(x.motivo)}</span>${dias ? `<span class="muted">· ${dias}</span>` : ''}${cerrado ? '' : insigniaLlamadas(x)}</div>
     <div class="muted" style="font-size:12.5px">${esc(x.producto || '')}${x.adelanto > 0 ? ` · adelantó ${soles(x.adelanto)}` : ' · sin adelanto'}${x.intentos ? ` · ${x.intentos} intento(s)` : ''}${esFiltroTodos() && x.cobrador ? ` · <b>${esc(x.cobrador)}</b>` : ''}</div>
+    ${cajaClave(x)}
     ${x.ultima_nota ? `<div style="font-size:12.5px;background:var(--p3);border-radius:8px;padding:6px 9px">📝 ${esc(x.ultima_nota)}</div>` : ''}
     ${x.nota_zentro && x.nota_zentro !== x.ultima_nota ? `<div class="muted" style="font-size:12px">Zentro: ${esc(x.nota_zentro)}</div>` : ''}
     ${cerrado ? '' : `<div class="acciones">
@@ -246,6 +250,12 @@ function tarjeta(x, n) {
     </div>`}</div>`;
 }
 const esFiltroTodos = () => esJefe() && !filtroCob;
+function cajaClave(x) {
+  if (!x.clave_recojo && !x.codigo_envio) return '';
+  const txt = [x.codigo_envio && `Código ${x.codigo_envio}`, x.clave_recojo && `Clave ${x.clave_recojo}`, x.guia && `N° orden ${x.guia}`].filter(Boolean).join(' · ');
+  return `<div class="clave"><span>🔑</span>${x.codigo_envio ? `<span>Código <b>${esc(x.codigo_envio)}</b></span>` : ''}${x.clave_recojo ? `<span>Clave <b>${esc(x.clave_recojo)}</b></span>` : ''}${x.guia ? `<span class="muted">N° orden ${esc(x.guia)}</span>` : ''}<button class="btn sm" data-copiar="${esc(txt)}">📋 Copiar</button></div>`;
+}
+document.addEventListener('click', async (e) => { const b = e.target.closest('[data-copiar]'); if (!b) return; e.stopPropagation(); try { await navigator.clipboard.writeText(b.dataset.copiar); toast('Copiado: ' + b.dataset.copiar); } catch (er) { toast(b.dataset.copiar); } });
 function insigniaLlamadas(x) {
   const r = llam[x.id], n = r?.llamadas || 0;
   const hora = r?.ultima_llamada ? new Date(r.ultima_llamada).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Lima' }) : '';
@@ -274,6 +284,7 @@ function verLlamada(id) {
     <div style="font-weight:800;font-size:18px">${esc(x.cliente || 'Cliente')}</div>
     <div class="num-grande" id="num-grande">${num}</div>
     <div style="text-align:center">${insigniaLlamadas(x)}</div>
+    ${cajaClave(x)}
     <div class="muted" style="text-align:center">#${esc(x.numero)} · ${esc(x.courier || '')} ${esc(x.agencia_nombre || '')} · saldo <b>${soles(x.saldo)}</b></div>
     ${x.ultima_nota ? `<div style="font-size:13px;background:var(--p3);border-radius:8px;padding:8px 10px">📝 ${esc(x.ultima_nota)}</div>` : ''}
     <div class="fila" style="justify-content:center"><button class="btn" id="m-copiar">📋 Copiar número</button><a class="btn b-ll" href="tel:+${tel(x)}">📞 Llamar desde este equipo</a></div>
@@ -306,7 +317,7 @@ function plantillas(x) {
   const nom = (x.cliente || '').split(' ')[0] || '';
   const nomC = nom ? nom.charAt(0).toUpperCase() + nom.slice(1).toLowerCase() : '';
   const ag = `${x.courier || 'Shalom'}${x.agencia_nombre ? ' ' + x.agencia_nombre : ''}`;
-  const clave = x.clave_recojo ? ` Tu clave de recojo es: *${x.clave_recojo}*.` : '';
+  const clave = x.clave_recojo ? ` Para recogerlo indica tu código *${x.codigo_envio || ''}* y tu clave *${x.clave_recojo}*${x.guia ? ` (N° de orden ${x.guia})` : ''}.` : (x.codigo_envio ? ` Tu código de envío es *${x.codigo_envio}*.` : '');
   const saldo = soles(x.saldo);
   const L = [];
   if (x.estado_envio === 'en_agencia') L.push({ t: '📦 Ya llegó a la agencia', m: `¡Hola ${nomC}! 💚 Te saluda Unbox Nutrition. Tu pedido N° ${x.numero} ya llegó a la agencia *${ag}* y está listo para que lo recojas con tu DNI.${clave} Saldo a pagar: *${saldo}*. ¿A qué hora podrías pasar hoy? 🙌` });
