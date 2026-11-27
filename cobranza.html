@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cobranza · CRM UNBOX</title>
+<link rel="icon" href="icono-unbox.jpg">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--marca:#0FA968;--marca2:#0FA9681F;--bg:#F1F5F9;--p:#FFFFFF;--p3:#F7F8FA;--bd:#E4E7EC;--tx:#101828;--mu:#667085;
+--se:#B42318;--se2:#FEE4E2;--co:#DC2626;--co2:#FEF3F2;--pr:#D97706;--pr2:#FFFAEB;--re:#475467;--re2:#F2F4F7;--au:#2563EB;--au2:#EFF4FF}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--tx);font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:14px}
+button{font-family:inherit;cursor:pointer;color:inherit}
+input,select,textarea{font-family:inherit;font-size:15px;border:1px solid #D0D5DD;border-radius:10px;padding:10px 12px;width:100%;background:#fff;color:var(--tx)}
+.hidden{display:none!important}
+.muted{color:var(--mu)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:#fff;border:1px solid #D0D5DD;border-radius:10px;padding:9px 12px;font-size:13px;font-weight:600;white-space:nowrap}
+.btn.pri{background:var(--marca);border-color:var(--marca);color:#fff}
+.btn.sm{padding:6px 10px;font-size:12px}
+.card{background:var(--p);border:1px solid var(--bd);border-radius:16px;padding:16px;box-shadow:0 1px 3px #1018280F}
+.centro{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.caja{width:100%;max-width:360px;display:flex;flex-direction:column;gap:12px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:17px}
+.logo .u{width:36px;height:36px;border-radius:10px;background:var(--marca);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800}
+header{position:sticky;top:0;z-index:5;background:var(--p);border-bottom:1px solid var(--bd);padding:10px 16px;display:flex;align-items:center;gap:10px}
+main{max-width:1100px;margin:0 auto;padding:16px;display:flex;flex-direction:column;gap:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.kpi .n{font-size:26px;font-weight:800;letter-spacing:-.02em}
+.kpi .l{font-size:12px;color:var(--mu);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.bar{height:10px;background:var(--p3);border-radius:99px;overflow:hidden;margin-top:8px;border:1px solid var(--bd)}
+.bar i{display:block;height:100%;background:var(--marca);border-radius:99px;transition:width .4s}
+.riesgo{background:linear-gradient(135deg,#B42318,#DC2626);color:#fff;border:0}
+.riesgo .l{color:#FECDCA}
+.duelo{display:flex;gap:8px;align-items:stretch}
+.duelo .lado{flex:1;border-radius:12px;padding:10px;background:var(--p3);text-align:center}
+.duelo .lado.gana{background:var(--marca2);outline:2px solid var(--marca)}
+.duelo .vs{align-self:center;font-weight:800;color:var(--mu)}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.tabs button{border:1px solid var(--bd);background:var(--p);border-radius:99px;padding:8px 14px;font-weight:700;font-size:13px;white-space:nowrap}
+.tabs button.on{background:var(--tx);color:#fff;border-color:var(--tx)}
+.tabs .c{margin-left:6px;opacity:.7}
+.lista{display:flex;flex-direction:column;gap:10px}
+.caso{border-left:6px solid var(--bd);display:flex;flex-direction:column;gap:8px}
+.caso.se_pierde{border-left-color:var(--se)} .caso.cobrar_hoy{border-left-color:var(--co)} .caso.preparar{border-left-color:var(--pr)}
+.caso.rescate{border-left-color:var(--re)} .caso.automatico{border-left-color:var(--au)}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;border-radius:99px;padding:3px 9px}
+.tag.se_pierde{background:var(--se2);color:var(--se)} .tag.cobrar_hoy{background:var(--co2);color:var(--co)} .tag.preparar{background:var(--pr2);color:var(--pr)}
+.tag.rescate{background:var(--re2);color:var(--re)} .tag.automatico{background:var(--au2);color:var(--au)} .tag.cerrado{background:#ECFDF3;color:#067647}
+.fila{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.entre{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.saldo{font-size:20px;font-weight:800;white-space:nowrap}
+.motivo{font-weight:700}
+.pts{font-size:11px;font-weight:800;background:var(--tx);color:#fff;border-radius:8px;padding:2px 7px}
+.acciones{display:flex;gap:6px;flex-wrap:wrap}
+.acciones .btn{flex:1 1 auto}
+.b-ok{background:#ECFDF3;border-color:#ABEFC6;color:#067647}
+.b-no{background:#FEF3F2;border-color:#FECDCA;color:#B42318}
+.b-pr{background:#FFFAEB;border-color:#FEDF89;color:#B54708}
+.b-ll{background:var(--marca);border-color:var(--marca);color:#fff}
+.b-wa{background:#25D366;border-color:#25D366;color:#fff}
+.vacio{text-align:center;padding:30px;color:var(--mu)}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--tx);color:#fff;padding:10px 16px;border-radius:10px;font-weight:600;z-index:20}
+.modal{position:fixed;inset:0;background:#10182866;display:flex;align-items:flex-end;justify-content:center;z-index:15;padding:12px}
+.modal .card{width:100%;max-width:440px;display:flex;flex-direction:column;gap:10px}
+@media(min-width:700px){.modal{align-items:center}}
+.top10 .num{width:26px;height:26px;border-radius:8px;background:var(--tx);color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:12px;flex:0 0 26px}
+select.cob{width:auto;padding:6px 10px;font-size:13px}
+</style>
+</head>
+<body>
+
+<section id="v-login" class="centro hidden"><form class="card caja" id="f-login">
+  <div class="logo"><div class="u">U</div>Cobranza · CRM UNBOX</div>
+  <p class="muted" style="margin:0">Entra con el mismo usuario del CRM.</p>
+  <input name="usuario" placeholder="Usuario" autocomplete="username" required>
+  <input name="password" type="password" placeholder="Contraseña" autocomplete="current-password" required>
+  <div id="e-login" style="color:#B42318;font-size:13px;min-height:16px"></div>
+  <button class="btn pri" type="submit">Entrar</button>
+</form></section>
+
+<section id="v-app" class="hidden">
+  <header>
+    <div class="logo"><div class="u">U</div><span>Cobranza</span></div>
+    <div style="flex:1"></div>
+    <select id="f-cob" class="cob hidden"></select>
+    <div style="text-align:right"><div id="yo-nombre" style="font-weight:700"></div><div id="yo-rol" class="muted" style="font-size:12px"></div></div>
+    <a class="btn sm" href="./" title="Volver al CRM">CRM</a>
+    <button class="btn sm" id="salir">Salir</button>
+  </header>
+  <main id="main"></main>
+</section>
+
+<div id="toast" class="hidden"></div>
+<div id="modal" class="modal hidden"></div>
+
+<script>
+const SB_URL = 'https://vqkeoibwqzlyudbuonxv.supabase.co';
+const SB_KEY = 'sb_publishable_DRVRaOR_vWvxtWNKF7vt9A_anDTWMM6';
+const DOMINIO = 'crm-unbox.local';
+const sb = supabase.createClient(SB_URL, SB_KEY);
+const $ = (s) => document.querySelector(s);
+const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const soles = (n) => 'S/ ' + Number(n || 0).toLocaleString('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+const NIVELES = {
+  top: { t: '⭐ Los 10 de hoy' },
+  se_pierde: { t: '🚨 Se pierde hoy', a: 'Llamar primero, antes de las 9 am' },
+  cobrar_hoy: { t: '🔴 Cobrar hoy', a: 'Llamar en la mañana' },
+  preparar: { t: '🟠 Preparar', a: 'Mandar WhatsApp de aviso; llamar si no responde' },
+  rescate: { t: '⚫ Rescate', a: 'Pasar a la supervisora con una última oferta' },
+  automatico: { t: '🔵 Automático', a: 'Lo atiende el WhatsApp; no gastes llamadas aquí' },
+  cerrado: { t: '✅ Cobrados' },
+};
+let yo = null, casos = [], avance = [], duelo = [], tab = 'top', filtroCob = '', canal = null;
+
+function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.remove('hidden'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.add('hidden'), 2600); }
+const correo = (u) => { u = String(u || '').trim().toLowerCase(); return u.includes('@') ? u : `${u}@${DOMINIO}`; };
+
+$('#f-login').addEventListener('submit', async (e) => {
+  e.preventDefault(); const f = new FormData(e.target); $('#e-login').textContent = '';
+  const { error } = await sb.auth.signInWithPassword({ email: correo(f.get('usuario')), password: f.get('password') });
+  if (error) { $('#e-login').textContent = 'Usuario o contraseña incorrectos'; return; }
+  iniciar();
+});
+$('#salir').onclick = async () => { await sb.auth.signOut(); location.reload(); };
+
+async function iniciar() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { $('#v-login').classList.remove('hidden'); $('#v-app').classList.add('hidden'); return; }
+  const { data: p } = await sb.from('perfiles').select('id,nombre,usuario,rol,activo').eq('id', session.user.id).single();
+  if (!p || !p.activo || !['admin', 'supervisora', 'cobranza', 'despacho'].includes(p.rol)) {
+    $('#v-login').classList.remove('hidden'); $('#e-login').textContent = 'Tu usuario no tiene acceso a Cobranza'; await sb.auth.signOut(); return;
+  }
+  yo = p;
+  $('#v-login').classList.add('hidden'); $('#v-app').classList.remove('hidden');
+  $('#yo-nombre').textContent = p.nombre;
+  $('#yo-rol').textContent = { admin: 'Administrador', supervisora: 'Supervisora', cobranza: 'Cobranza', despacho: 'Despacho' }[p.rol];
+  if (p.rol === 'despacho') return pintarDespacho();
+  if (esJefe()) {
+    const { data: cobs } = await sb.from('perfiles').select('id,nombre').eq('rol', 'cobranza').eq('activo', true).order('nombre');
+    $('#f-cob').innerHTML = '<option value="">Todo el equipo</option>' + (cobs || []).map((c) => `<option value="${c.id}">${esc(c.nombre)}</option>`).join('');
+    $('#f-cob').classList.remove('hidden');
+    $('#f-cob').onchange = (e) => { filtroCob = e.target.value; pintar(); };
+  }
+  await cargar();
+  canal = sb.channel('cobranza').on('postgres_changes', { event: '*', schema: 'public', table: 'cobranza_casos' }, () => { clearTimeout(cargar.t); cargar.t = setTimeout(cargar, 800); }).subscribe();
+  setInterval(cargar, 5 * 60 * 1000);
+}
+const esJefe = () => yo && (yo.rol === 'admin' || yo.rol === 'supervisora');
+
+async function cargar() {
+  const [c, a, d] = await Promise.all([
+    sb.from('cobranza_prioridad').select('*').neq('nivel', 'cerrado').order('nivel_orden').order('puntaje', { ascending: false }).limit(1000),
+    sb.from('cobranza_avance_hoy').select('*'),
+    sb.rpc('cobranza_duelo'),
+  ]);
+  const hoy = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Lima' })).toISOString().slice(0, 10);
+  const { data: cerr } = await sb.from('cobranza_prioridad').select('*').eq('nivel', 'cerrado').gte('cobrado_at', hoy + 'T05:00:00Z').order('cobrado_at', { ascending: false }).limit(200);
+  casos = [...(c.data || []), ...(cerr || [])]; avance = a.data || []; duelo = d.data || [];
+  pintar();
+}
+
+function pintar() {
+  const mios = casos.filter((x) => !filtroCob || x.cobrador_id === filtroCob);
+  const abiertos = mios.filter((x) => x.nivel !== 'cerrado');
+  const llamables = abiertos.filter((x) => ['se_pierde', 'cobrar_hoy', 'preparar', 'rescate'].includes(x.nivel));
+  const listas = { top: llamables.slice().sort((a, b) => a.nivel_orden - b.nivel_orden || b.puntaje - a.puntaje).slice(0, 10) };
+  for (const k of Object.keys(NIVELES)) if (k !== 'top') listas[k] = mios.filter((x) => x.nivel === k);
+  const av = avance.filter((x) => yo.rol === 'cobranza' ? x.cobrador_id === yo.id : (!filtroCob || x.cobrador_id === filtroCob));
+  const sum = (k) => av.reduce((s, x) => s + Number(x[k] || 0), 0);
+  const metaC = sum('meta_cobros') || 25, metaM = sum('meta_monto') || 3000, cob = sum('cobrados_hoy'), mon = sum('monto_hoy');
+  const enRiesgo = abiertos.filter((x) => x.nivel === 'se_pierde' || x.nivel === 'cobrar_hoy').reduce((s, x) => s + Number(x.saldo || 0), 0);
+  const lider = duelo.length > 1 && Number(duelo[0].monto_hoy) > Number(duelo[1].monto_hoy) ? duelo[0].nombre : null;
+  $('#main').innerHTML = `
+  <div class="grid">
+    <div class="card kpi riesgo"><div class="l">Plata en riesgo</div><div class="n">${soles(enRiesgo)}</div><div style="font-size:12.5px;opacity:.9">Se devuelve si no se recoge: ${listas.se_pierde.length} se pierden hoy · ${listas.cobrar_hoy.length} por cobrar hoy</div></div>
+    <div class="card kpi"><div class="l">Cobros de hoy</div><div class="n">${cob} <span class="muted" style="font-size:15px">/ ${metaC}</span></div><div class="bar"><i style="width:${Math.min(100, cob / metaC * 100)}%"></i></div></div>
+    <div class="card kpi"><div class="l">Soles cobrados hoy</div><div class="n">${soles(mon)} <span class="muted" style="font-size:15px">/ ${soles(metaM)}</span></div><div class="bar"><i style="width:${Math.min(100, mon / metaM * 100)}%"></i></div></div>
+    <div class="card"><div class="kpi"><div class="l" style="margin-bottom:8px">Duelo de hoy</div></div>
+      <div class="duelo">${duelo.slice(0, 2).map((d, i) => `${i ? '<div class="vs">VS</div>' : ''}<div class="lado ${lider === d.nombre ? 'gana' : ''}"><div style="font-weight:800">${lider === d.nombre ? '👑 ' : ''}${esc(d.nombre)}</div><div style="font-size:18px;font-weight:800">${soles(d.monto_hoy)}</div><div class="muted" style="font-size:12px">${d.cobrados_hoy} cobros · semana ${soles(d.monto_semana)}</div></div>`).join('') || '<div class="muted">Aún sin cobradores</div>'}</div></div>
+  </div>
+  <div class="tabs">${Object.entries(NIVELES).map(([k, v]) => `<button data-tab="${k}" class="${tab === k ? 'on' : ''}">${v.t}<span class="c">${listas[k].length}</span></button>`).join('')}</div>
+  ${NIVELES[tab].a ? `<div class="muted" style="font-weight:600;margin-top:-6px">👉 ${NIVELES[tab].a}</div>` : ''}
+  <div class="lista ${tab === 'top' ? 'top10' : ''}">${listas[tab].map((x, i) => tarjeta(x, tab === 'top' ? i + 1 : 0)).join('') || `<div class="card vacio">${tab === 'top' ? '¡Nada urgente! Revisa "Preparar" para adelantarte.' : 'No hay clientes aquí.'}</div>`}</div>`;
+  document.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { tab = b.dataset.tab; pintar(); });
+}
+
+function tel(x) { const d = String(x.celular || '').replace(/\D/g, ''); return d ? (d.length === 9 ? '51' + d : d) : ''; }
+function mensajeWA(x) {
+  const nom = (x.cliente || '').split(' ')[0] || '';
+  const ag = x.agencia_nombre ? `${x.courier || 'Shalom'} ${x.agencia_nombre}` : (x.courier || 'la agencia');
+  const base = x.estado_envio === 'en_agencia'
+    ? `Hola ${nom} 👋, te saluda Unbox Nutrition. Tu pedido N° ${x.numero} ya llegó a la agencia ${ag} y está listo para que lo recojas con tu DNI.`
+    : `Hola ${nom} 👋, te saluda Unbox Nutrition. Tu pedido N° ${x.numero} está en camino a la agencia ${ag}. Te avisamos apenas llegue.`;
+  return `${base}${x.clave_recojo ? ` Tu clave de recojo es: ${x.clave_recojo}.` : ''} Saldo a pagar al recoger: ${soles(x.saldo)}. ¿A qué hora podrías pasar? 🙌`;
+}
+function tarjeta(x, n) {
+  const t = tel(x), cerrado = x.nivel === 'cerrado';
+  const dias = x.dias_en_agencia != null && x.estado_envio === 'en_agencia' ? `${x.dias_en_agencia} d en agencia` : (x.estado_envio === 'en_camino' ? 'En camino' : '');
+  return `<div class="card caso ${x.nivel}" data-id="${x.id}">
+    <div class="entre"><div class="fila" style="gap:10px;flex-wrap:nowrap">${n ? `<div class="num">${n}</div>` : ''}<div>
+      <div style="font-weight:800;font-size:15px">${esc(x.cliente || 'Pedido ' + x.numero)}</div>
+      <div class="muted" style="font-size:12.5px">#${esc(x.numero)} · ${esc(x.courier || '')}${x.agencia_nombre ? ' · ' + esc(x.agencia_nombre) : ''} · ${esc([x.provincia, x.departamento].filter(Boolean).join(', '))}</div></div></div>
+      <div style="text-align:right"><div class="saldo">${soles(x.saldo)}</div>${!cerrado ? `<span class="pts" title="Puntaje de prioridad">${x.puntaje}</span>` : ''}</div></div>
+    <div class="fila"><span class="tag ${x.nivel}">${NIVELES[x.nivel]?.t || x.nivel}</span><span class="motivo">${esc(x.motivo)}</span>${dias ? `<span class="muted">· ${dias}</span>` : ''}</div>
+    <div class="muted" style="font-size:12.5px">${esc(x.producto || '')}${x.adelanto > 0 ? ` · adelantó ${soles(x.adelanto)}` : ' · sin adelanto'}${x.intentos ? ` · ${x.intentos} intento(s)` : ''}${esFiltroTodos() && x.cobrador ? ` · <b>${esc(x.cobrador)}</b>` : ''}</div>
+    ${x.ultima_nota ? `<div style="font-size:12.5px;background:var(--p3);border-radius:8px;padding:6px 9px">📝 ${esc(x.ultima_nota)}</div>` : ''}
+    ${x.nota_zentro && x.nota_zentro !== x.ultima_nota ? `<div class="muted" style="font-size:12px">Zentro: ${esc(x.nota_zentro)}</div>` : ''}
+    ${cerrado ? '' : `<div class="acciones">
+      ${t ? `<a class="btn b-ll" href="tel:+${t}">📞 Llamar</a><a class="btn b-wa" target="_blank" href="https://wa.me/${t}?text=${encodeURIComponent(mensajeWA(x))}" data-a="whatsapp">WhatsApp</a>` : '<span class="muted" style="font-size:12px">Sin celular todavía (llega en la próxima sincronización)</span>'}
+    </div><div class="acciones">
+      <button class="btn b-ok" data-a="contesto">✅ Contestó</button>
+      <button class="btn b-no" data-a="no_contesta">📵 No contesta</button>
+      <button class="btn b-pr" data-a="promete">📅 Promete</button>
+      <button class="btn b-ok" data-a="recogio">💰 Recogió</button>
+      <button class="btn" data-a="rechaza">✖ Rechaza</button>
+      <button class="btn" data-a="nota">📝</button>
+    </div>`}</div>`;
+}
+const esFiltroTodos = () => esJefe() && !filtroCob;
+
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-a]'); if (!b) return;
+  const card = b.closest('[data-id]'); if (!card) return;
+  const id = card.dataset.id, a = b.dataset.a;
+  if (a === 'whatsapp') { registrar(id, 'whatsapp', 'Envió WhatsApp de aviso'); return; }
+  if (a === 'promete' || a === 'nota' || a === 'rechaza') return preguntar(id, a);
+  registrar(id, a, null);
+});
+
+function preguntar(id, a) {
+  const manana = new Date(Date.now() + 86400000 - 5 * 3600000).toISOString().slice(0, 10);
+  const t = { promete: '📅 ¿Qué día promete recoger?', nota: '📝 Agregar nota', rechaza: '✖ ¿Por qué rechaza?' }[a];
+  $('#modal').innerHTML = `<form class="card" id="f-modal"><div style="font-weight:800;font-size:16px">${t}</div>
+    ${a === 'promete' ? `<input type="date" name="fecha" value="${manana}" required>` : ''}
+    <textarea name="nota" rows="3" placeholder="${a === 'rechaza' ? 'Motivo (no tiene dinero, ya no lo quiere, viajó…)' : 'Nota (opcional)'}" ${a !== 'promete' ? 'required' : ''}></textarea>
+    <div class="fila" style="justify-content:flex-end"><button type="button" class="btn" id="m-x">Cancelar</button><button class="btn pri">Guardar</button></div></form>`;
+  $('#modal').classList.remove('hidden');
+  $('#m-x').onclick = () => $('#modal').classList.add('hidden');
+  $('#f-modal').onsubmit = async (e) => { e.preventDefault(); const f = new FormData(e.target); $('#modal').classList.add('hidden'); registrar(id, a, f.get('nota') || null, f.get('fecha') || null); };
+}
+
+async function registrar(caso_id, accion, nota, promesa_fecha) {
+  const { error } = await sb.from('cobranza_gestiones').insert({ caso_id, accion, nota, promesa_fecha });
+  if (error) { toast('No se pudo guardar: ' + error.message); return; }
+  toast({ contesto: 'Marcado: contestó', no_contesta: 'Marcado: no contesta', promete: 'Promesa guardada', recogio: '💰 ¡Cobrado! Suma a tu meta', rechaza: 'Pasa a rescate', nota: 'Nota guardada', whatsapp: 'WhatsApp registrado' }[accion]);
+  cargar();
+}
+
+/* ===== César (despacho): cargar guías de Shalom ===== */
+function pintarDespacho() {
+  $('#main').innerHTML = `<form class="card" id="f-guia" style="max-width:480px;display:flex;flex-direction:column;gap:10px">
+    <div style="font-weight:800;font-size:17px">📦 Cargar guía de envío</div>
+    <p class="muted" style="margin:0">Al guardar, el pedido pasa a "en camino" y cobranza ya puede avisarle al cliente.</p>
+    <input name="numero" placeholder="N° de pedido (ej. 68260)" required>
+    <input name="guia" placeholder="N° de guía / orden de Shalom" required>
+    <input name="clave" placeholder="Clave de recojo (si tiene)">
+    <select name="courier"><option>Shalom</option><option>Olva</option><option>OTRAS AGENCIAS</option></select>
+    <button class="btn pri">Guardar guía</button><div id="g-ok" class="muted"></div></form>`;
+  $('#f-guia').onsubmit = async (e) => {
+    e.preventDefault(); const f = new FormData(e.target);
+    const { error } = await sb.rpc('cobranza_cargar_guia', { p_numero: f.get('numero').trim().replace('#', ''), p_guia: f.get('guia').trim(), p_courier: f.get('courier'), p_clave: f.get('clave').trim() || null });
+    if (error) { toast(error.message.includes('No encontré') ? 'Ese pedido aún no está en Cobranza (entra en la próxima sincronización)' : error.message); return; }
+    $('#g-ok').textContent = `✅ Guía guardada para el pedido ${f.get('numero')}`; e.target.reset();
+  };
+}
+
+iniciar();
+</script>
+</body>
+</html>
