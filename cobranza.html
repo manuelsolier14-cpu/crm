@@ -61,6 +61,9 @@ main{max-width:1100px;margin:0 auto;padding:16px;display:flex;flex-direction:col
 .b-pr{background:#FFFAEB;border-color:#FEDF89;color:#B54708}
 .b-ll{background:var(--marca);border-color:var(--marca);color:#fff}
 .b-wa{background:#25D366;border-color:#25D366;color:#fff}
+.b-chat{background:#EFF4FF;border-color:#B2CCFF;color:#1849A9}
+.caso.foco{box-shadow:0 0 0 3px var(--marca)}
+a.zen{font-size:12px;font-weight:600;color:var(--mu)}
 .vacio{text-align:center;padding:30px;color:var(--mu)}
 #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--tx);color:#fff;padding:10px 16px;border-radius:10px;font-weight:600;z-index:20}
 .modal{position:fixed;inset:0;background:#10182866;display:flex;align-items:flex-end;justify-content:center;z-index:15;padding:12px}
@@ -144,7 +147,9 @@ async function iniciar() {
     $('#f-cob').classList.remove('hidden');
     $('#f-cob').onchange = (e) => { filtroCob = e.target.value; pintar(); };
   }
+  const punto = recuperarPunto();
   await cargar();
+  enfocar(punto);
   canal = sb.channel('cobranza').on('postgres_changes', { event: '*', schema: 'public', table: 'cobranza_casos' }, () => { clearTimeout(cargar.t); cargar.t = setTimeout(cargar, 800); }).subscribe();
   setInterval(cargar, 5 * 60 * 1000);
 }
@@ -202,14 +207,14 @@ function tarjeta(x, n) {
   return `<div class="card caso ${x.nivel}" data-id="${x.id}">
     <div class="entre"><div class="fila" style="gap:10px;flex-wrap:nowrap">${n ? `<div class="num">${n}</div>` : ''}<div>
       <div style="font-weight:800;font-size:15px">${esc(x.cliente || 'Pedido ' + x.numero)}</div>
-      <div class="muted" style="font-size:12.5px">#${esc(x.numero)} · ${esc(x.courier || '')}${x.agencia_nombre ? ' · ' + esc(x.agencia_nombre) : ''} · ${esc([x.provincia, x.departamento].filter(Boolean).join(', '))}</div></div></div>
+      <div class="muted" style="font-size:12.5px">${x.zentro_id ? `<a class="zen" target="_blank" href="https://zentro.one/dashboard/orders/${esc(x.zentro_id)}">#${esc(x.numero)} ↗</a>` : '#' + esc(x.numero)} · ${esc(x.courier || '')}${x.agencia_nombre ? ' · ' + esc(x.agencia_nombre) : ''} · ${esc([x.provincia, x.departamento].filter(Boolean).join(', '))}</div></div></div>
       <div style="text-align:right"><div class="saldo">${soles(x.saldo)}</div>${!cerrado ? `<span class="pts" title="Puntaje de prioridad">${x.puntaje}</span>` : ''}</div></div>
     <div class="fila"><span class="tag ${x.nivel}">${NIVELES[x.nivel]?.t || x.nivel}</span><span class="motivo">${esc(x.motivo)}</span>${dias ? `<span class="muted">· ${dias}</span>` : ''}</div>
     <div class="muted" style="font-size:12.5px">${esc(x.producto || '')}${x.adelanto > 0 ? ` · adelantó ${soles(x.adelanto)}` : ' · sin adelanto'}${x.intentos ? ` · ${x.intentos} intento(s)` : ''}${esFiltroTodos() && x.cobrador ? ` · <b>${esc(x.cobrador)}</b>` : ''}</div>
     ${x.ultima_nota ? `<div style="font-size:12.5px;background:var(--p3);border-radius:8px;padding:6px 9px">📝 ${esc(x.ultima_nota)}</div>` : ''}
     ${x.nota_zentro && x.nota_zentro !== x.ultima_nota ? `<div class="muted" style="font-size:12px">Zentro: ${esc(x.nota_zentro)}</div>` : ''}
     ${cerrado ? '' : `<div class="acciones">
-      ${t ? `<a class="btn b-ll" href="tel:+${t}">📞 Llamar</a><a class="btn b-wa" target="_blank" href="https://wa.me/${t}?text=${encodeURIComponent(mensajeWA(x))}" data-a="whatsapp">WhatsApp</a>` : '<span class="muted" style="font-size:12px">Sin celular todavía (llega en la próxima sincronización)</span>'}
+      ${t ? `<a class="btn b-ll" href="tel:+${t}">📞 Llamar</a><a class="btn b-wa" target="_blank" href="https://wa.me/${t}?text=${encodeURIComponent(mensajeWA(x))}" data-a="whatsapp">WhatsApp</a><button class="btn b-chat" data-a="chat">💬 Ver conversación</button>` : '<span class="muted" style="font-size:12px">Sin celular todavía (llega en la próxima sincronización)</span>'}
     </div><div class="acciones">
       <button class="btn b-ok" data-a="contesto">✅ Contestó</button>
       <button class="btn b-no" data-a="no_contesta">📵 No contesta</button>
@@ -226,9 +231,31 @@ document.addEventListener('click', async (e) => {
   const card = b.closest('[data-id]'); if (!card) return;
   const id = card.dataset.id, a = b.dataset.a;
   if (a === 'whatsapp') { registrar(id, 'whatsapp', 'Envió WhatsApp de aviso'); return; }
+  if (a === 'chat') { irAlChat(id, b); return; }
   if (a === 'promete' || a === 'nota' || a === 'rechaza') return preguntar(id, a);
   registrar(id, a, null);
 });
+
+async function irAlChat(id, b) {
+  b.disabled = true; b.textContent = 'Abriendo…';
+  const { data, error } = await sb.rpc('cobranza_conversacion', { p_caso: id });
+  if (error) { toast(error.message); b.disabled = false; b.textContent = '💬 Ver conversación'; return; }
+  guardarPunto(id);
+  location.href = `./?chat=${data}&desde=cobranza`;
+}
+function guardarPunto(id) { try { localStorage.setItem('cob_volver', JSON.stringify({ tab, filtroCob, id, y: scrollY, t: Date.now() })); } catch (e) {} }
+function recuperarPunto() {
+  let p = null; try { p = JSON.parse(localStorage.getItem('cob_volver') || 'null'); localStorage.removeItem('cob_volver'); } catch (e) {}
+  if (!p || Date.now() - p.t > 6 * 3600000) return null;
+  tab = p.tab || 'top'; filtroCob = p.filtroCob || ''; if ($('#f-cob')) $('#f-cob').value = filtroCob;
+  return p;
+}
+function enfocar(p) {
+  if (!p) return;
+  const el = document.querySelector(`[data-id="${p.id}"]`);
+  if (el) { el.scrollIntoView({ block: 'center' }); el.classList.add('foco'); setTimeout(() => el.classList.remove('foco'), 3500); }
+  else scrollTo(0, p.y || 0);
+}
 
 function preguntar(id, a) {
   const manana = new Date(Date.now() + 86400000 - 5 * 3600000).toISOString().slice(0, 10);
