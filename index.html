@@ -350,7 +350,7 @@ const CONFIG = {
     { id: 'cancelado', nombre: 'Cancelados', color: '#DC2626', estados: ['cancelado', 'devuelto'], destino: 'cancelado', ayuda: 'Cancelados y devueltos: lo que se cayó.' },
   ],
   estadosPedido: { borrador: 'Borrador', pendiente: 'Nuevo · por confirmar', por_adelantar: 'Esperando adelanto', por_validar: 'Adelanto por validar', confirmado: 'Confirmado', en_preparacion: 'En preparación', validado_hoy: 'Validado hoy', enviado: 'En tránsito', por_recoger: 'Por recoger', entregado: 'Entregado', incidencia: 'Incidencia courier', cancelado: 'Cancelado', devuelto: 'Devuelto' },
-  roles: { admin: 'Administrador', supervisora: 'Supervisora', asesora: 'Asesora vendedora', rescatista: 'Rescatista', cobranza: 'Cobranza' },
+  roles: { admin: 'Administrador', supervisora: 'Supervisora', asesora: 'Asesora vendedora', rescatista: 'Rescatista', cobranza: 'Cobranza', despacho: 'Despacho' },
 };
 /* ===================================================================== */
 
@@ -513,6 +513,7 @@ const MENU = [
   { v: 'chats', t: 'Super Chat', i: 'chat' },
   { sec: 'Ventas' },
   { v: 'pedidos', t: 'Pedidos', i: 'pedido' },
+  { v: 'cobranza', t: 'Cobranza', i: 'check' },
   { v: 'carritos', t: 'Carritos abandonados', i: 'shopify', sub: true },
   { v: 'embudo', t: 'CRM de clientes', i: 'embudo' },
   { v: 'metricas', t: 'Métricas del chat', i: 'reloj' },
@@ -533,6 +534,7 @@ const SECCIONES = MENU.filter((m) => m.v);
 function puede(v) {
   if (!yo) return false;
   if (yo.rol === 'admin') return true;
+  if (v === 'cobranza') return ['supervisora', 'cobranza', 'despacho'].includes(yo.rol);
   if (v === 'chats' || v === 'embudo') return true;
   if (v === 'equipo') return false;
   const p = permisos[yo.rol];
@@ -550,6 +552,7 @@ $('#atajos').addEventListener('click', (e) => { const b = e.target.closest('butt
 $('#nav').addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (b) ir(b.dataset.v); });
 const VISTAS = { dashboard: () => vistaDashboard(), carritos: () => vistaCarritos(), embudo: () => vistaEmbudo(), pedidos: () => vistaPedidos(), metricas: () => vistaMetricas(), catalogo: () => vistaCatalogo(), multimedia: () => vistaMultimedia(), rapidas: () => vistaRapidas(), confirmacion: () => vistaConfirmacion(), ia: () => vistaIA(), supervision: () => vistaSupervision(), comentarios: () => vistaComentarios(), conexiones: () => vistaConexiones(), equipo: () => vistaEquipo() };
 function ir(v) {
+  if (v === 'cobranza') { location.href = 'cobranza.html'; return; }
   if (!puede(v)) v = 'chats';
   vistaActual = v; $('#app').classList.toggle('superchat', v === 'chats'); guardarLocal('crm_vista', v);
   $$('#nav button').forEach((x) => x.classList.toggle('on', x.dataset.v === v));
@@ -578,7 +581,15 @@ async function entrar() {
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'mensajes' }, (p) => { if (sel && p.new.conversacion_id === sel.id) actualizarMensaje(p.new); })
     .subscribe();
   setInterval(() => { if (vistaActual === 'chats') pintarLista(); }, 60000);
+  const qs = new URLSearchParams(location.search), chatId = qs.get('chat');
+  if (chatId) {
+    ir('chats');
+    if (!convs.find((x) => x.id === chatId)) { const { data } = await sb.from('conversaciones').select('*, contactos(id,nombre,telefono,dni,riesgo,notas,created_at), conversacion_etiquetas(etiqueta_id)').eq('id', chatId).single(); if (data) { convs.unshift(data); pintarLista(); } }
+    await abrir(chatId);
+    if (qs.get('desde') === 'cobranza') document.body.insertAdjacentHTML('beforeend', '<a href="cobranza.html" id="volver-cobranza" style="position:fixed;left:16px;bottom:16px;z-index:60;background:#0FA968;color:#fff;font-weight:700;padding:12px 18px;border-radius:999px;text-decoration:none;box-shadow:0 6px 20px #0003">← Volver a Cobranza</a>');
+  } else {
   const v = leerLocal('crm_vista'); ir(v && puede(v) ? v : (puede('dashboard') ? 'dashboard' : 'chats'));
+  }
   if (!leerLocal('crm_tour_visto')) setTimeout(() => { if (VISTA_TOUR[vistaActual]) iniciarTour(vistaActual); guardarLocal('crm_tour_visto', '1'); }, 1200);
 }
 const recargar = debounce(async () => { await cargarConvs(); if (vistaActual === 'embudo') vistaEmbudo(true); }, 400);
