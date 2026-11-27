@@ -252,18 +252,30 @@ function verLlamada(id) {
     <div class="muted" style="text-align:center">#${esc(x.numero)} · ${esc(x.courier || '')} ${esc(x.agencia_nombre || '')} · saldo <b>${soles(x.saldo)}</b></div>
     ${x.ultima_nota ? `<div style="font-size:13px;background:var(--p3);border-radius:8px;padding:8px 10px">📝 ${esc(x.ultima_nota)}</div>` : ''}
     <div class="fila" style="justify-content:center"><button class="btn" id="m-copiar">📋 Copiar número</button><a class="btn b-ll" href="tel:+${tel(x)}">📞 Llamar desde este equipo</a></div>
-    <div class="muted" style="text-align:center;font-weight:600;margin-top:4px">¿Cómo te fue?</div>
+    <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:700;color:var(--mu)">📝 ¿Qué pasó en la llamada?
+      <textarea id="m-nota" rows="3" placeholder="Ej.: dice que recoge el sábado en la tarde, está de viaje, pidió el número de la agencia…"></textarea></label>
+    <label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--mu)">📅 Si promete, ¿qué día?
+      <input type="date" id="m-fecha" style="width:auto"></label>
+    <div class="muted" style="text-align:center;font-weight:600;margin-top:4px">¿Cómo te fue? (guarda la nota)</div>
     <div class="acciones">
       <button class="btn b-ok" data-r="contesto">✅ Contestó</button>
       <button class="btn b-no" data-r="no_contesta">📵 No contesta</button>
       <button class="btn b-pr" data-r="promete">📅 Promete</button>
       <button class="btn b-ok" data-r="recogio">💰 Recogió</button>
+      <button class="btn" data-r="rechaza">✖ Rechaza</button>
+      <button class="btn" data-r="nota">📝 Solo nota</button>
     </div>
     <button class="btn" id="m-x">Cerrar</button></div>`;
+  $('#m-fecha').value = new Date(Date.now() + 86400000 - 5 * 3600000).toISOString().slice(0, 10);
   $('#modal').classList.remove('hidden');
   $('#m-x').onclick = () => $('#modal').classList.add('hidden');
   $('#m-copiar').onclick = async () => { try { await navigator.clipboard.writeText(tel(x).slice(-9)); toast('Número copiado'); } catch (e) { toast(tel(x).slice(-9)); } };
-  $('#modal').querySelectorAll('[data-r]').forEach((b) => b.onclick = () => { const r = b.dataset.r; $('#modal').classList.add('hidden'); if (r === 'promete') preguntar(id, 'promete'); else registrar(id, r, null); });
+  $('#modal').querySelectorAll('[data-r]').forEach((b) => b.onclick = () => {
+    const r = b.dataset.r, nota = $('#m-nota').value.trim() || null, fecha = $('#m-fecha').value || null;
+    if ((r === 'nota' || r === 'rechaza') && !nota) { toast('Escribe la nota primero'); $('#m-nota').focus(); return; }
+    if (r === 'promete' && !fecha) { toast('Elige el día que promete recoger'); return; }
+    $('#modal').classList.add('hidden'); registrar(id, r, nota, r === 'promete' ? fecha : null);
+  });
 }
 function plantillas(x) {
   const nom = (x.cliente || '').split(' ')[0] || '';
