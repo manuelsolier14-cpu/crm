@@ -560,6 +560,42 @@ function ir(v) {
   if (VISTAS[v]) VISTAS[v]();
 }
 
+/* ===== Cobranza: sugerencias de mensajes dentro del chat ===== */
+function plantillasCobranza(x) {
+  const soles = (n) => 'S/ ' + Number(n || 0).toLocaleString('es-PE', { maximumFractionDigits: 2 });
+  const nom = (x.cliente || '').split(' ')[0] || '';
+  const nomC = nom ? nom.charAt(0).toUpperCase() + nom.slice(1).toLowerCase() : '';
+  const ag = `${x.courier || 'Shalom'}${x.agencia_nombre ? ' ' + x.agencia_nombre : ''}`;
+  const clave = x.clave_recojo ? ` Tu clave de recojo es: *${x.clave_recojo}*.` : '';
+  const saldo = soles(x.saldo), L = [];
+  if (x.estado_envio === 'en_agencia') {
+    L.push({ t: '📦 Ya llegó', m: `¡Hola ${nomC}! 💚 Te saluda Unbox Nutrition. Tu pedido N° ${x.numero} ya llegó a la agencia *${ag}* y está listo para que lo recojas con tu DNI.${clave} Saldo a pagar: *${saldo}*. ¿A qué hora podrías pasar hoy? 🙌` });
+    L.push({ t: '⏰ Recordatorio', m: `Hola ${nomC} 👋 te escribimos de Unbox Nutrition. Tu pedido N° ${x.numero} sigue esperándote en la agencia *${ag}*${x.dias_en_agencia ? ` desde hace ${x.dias_en_agencia} días` : ''}. La agencia lo guarda solo unos días. ¿Puedes recogerlo hoy? Saldo: *${saldo}*.` });
+    L.push({ t: '⚠️ Último aviso', m: `⚠️ ${nomC}, último aviso de Unbox Nutrition: tu pedido N° ${x.numero} está por ser devuelto por la agencia *${ag}*. Ya hiciste tu adelanto de ${soles(x.adelanto)}, no lo pierdas 🙏 ¿Lo recoges hoy? Si no puedes, respóndenos y buscamos una solución juntos.` });
+  }
+  if (x.estado_envio === 'en_camino') L.push({ t: '🚚 En camino', m: `Hola ${nomC} 👋 tu pedido N° ${x.numero} de Unbox Nutrition ya está en camino a la agencia *${ag}*. Te avisamos apenas llegue para que lo recojas con tu DNI 📦 Saldo a pagar al recoger: *${saldo}*.` });
+  if (x.promesa_fecha) L.push({ t: '📅 Promesa', m: `Hola ${nomC} 😊 quedamos en que recogías tu pedido N° ${x.numero} en la agencia *${ag}*. ¿Pudiste pasar? Si necesitas la dirección o el horario, te lo envío al toque.` });
+  L.push({ t: '📍 Dirección agencia', m: `Claro ${nomC} 🙌 tu pedido N° ${x.numero} está en la agencia *${ag}*. Lleva tu DNI y el saldo de *${saldo}*. ¡Te esperamos!` });
+  L.push({ t: '🙏 Gracias', m: `¡Gracias por recoger tu pedido, ${nomC}! 💚 Recuerda tomarlo tal como te indicaron. Cualquier duda, aquí estamos para ayudarte.` });
+  return L;
+}
+async function sugerenciasCobranza() {
+  const c = sel; if (!c || !$('#composer')) return;
+  const d9 = String(c.contactos?.telefono || '').replace(/\D/g, '').slice(-9); if (d9.length < 9) return;
+  const { data } = await sb.from('cobranza_prioridad').select('*').ilike('celular', '%' + d9).neq('nivel', 'cerrado').order('nivel_orden').limit(1);
+  const x = data && data[0]; if (!x || sel !== c || $('#sug-cob')) return;
+  const L = plantillasCobranza(x), cerrada = ventanaRestante(c) <= 0;
+  const caja = document.createElement('div'); caja.id = 'sug-cob';
+  caja.style.cssText = 'padding:8px 12px;border-top:1px solid var(--bd);background:var(--p3);display:flex;flex-direction:column;gap:6px';
+  caja.innerHTML = `<div style="font-size:12px;font-weight:700;color:var(--mu)">💰 Cobranza · pedido #${esc(x.numero)} · saldo S/ ${esc(x.saldo)} · ${esc(x.motivo || '')}</div>
+    ${cerrada ? '<div style="font-size:12px;color:var(--am)">⏳ La ventana de 24 h está cerrada: WhatsApp solo deja escribir primero con una <b>Plantilla</b> aprobada. Cuando el cliente responda, usa estos mensajes.</div>' : ''}
+    <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:2px">${L.map((p, i) => `<button class="btn sm" data-sc="${i}" title="${esc(p.m)}" style="white-space:nowrap">${p.t}</button>`).join('')}</div>`;
+  $('#composer').before(caja);
+  caja.querySelectorAll('[data-sc]').forEach((b) => b.onclick = () => { const t = $('#txt'); t.value = L[+b.dataset.sc].m; t.dispatchEvent(new Event('input')); t.focus(); });
+}
+const _abrirCobranza = abrir;
+abrir = async function (id) { await _abrirCobranza(id); sugerenciasCobranza(); };
+
 async function entrar() {
   const { data: { user } } = await sb.auth.getUser();
   const { data: p } = await sb.from('perfiles').select('*').eq('id', user?.id).single();
